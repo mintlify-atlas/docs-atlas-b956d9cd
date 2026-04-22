@@ -1,0 +1,177 @@
+---
+title: "Kiosco admin dashboard: manage your store"
+description: "Log in to the Kiosco admin panel to manage products and categories, monitor real-time orders, change order status, and export reports."
+---
+
+The admin dashboard is your central hub for running the store. From a single page you can manage your product catalog, monitor incoming orders, view revenue figures, and export reports — all without leaving the browser.
+
+## Accessing the admin panel
+
+Click the **Admin** button on the storefront to open `admin.html`. You will see a login form asking for your registered phone number.
+
+<Steps>
+  <Step title="Open the admin page">
+    Click **Admin** in the storefront header, or navigate directly to `admin.html`.
+  </Step>
+  <Step title="Enter your phone number">
+    Type your registered admin phone number into the password field. The default number is `+51914491874`.
+  </Step>
+  <Step title="Click Ingresar">
+    Click **Ingresar**. If the number matches, the dashboard opens immediately.
+  </Step>
+</Steps>
+
+<Note>
+  The phone number is stored in `localStorage` under the key `kiosco_admin_phone`. The `isAdmin()` function strips all spaces and `+` characters before comparing, so `+51 914 491 874` and `51914491874` both work.
+</Note>
+
+## Logging out
+
+Click **Cerrar Sesión** in the admin header. The dashboard hides, the login form reappears, and the phone field is cleared. The logout action is also written to the activity log.
+
+## The five main tabs
+
+After logging in, the dashboard exposes five tabs across the top.
+
+<Tabs>
+  <Tab title="Dashboard">
+    The default view. Shows a stats grid at the top, a product/category management panel, and the real-time orders list below.
+  </Tab>
+  <Tab title="Reportes">
+    Revenue charts, top-products chart, peak-hours chart, top customers by spend, and most profitable products. See [Sales reports and analytics](/features/reports-analytics) for full details.
+  </Tab>
+  <Tab title="Actividad">
+    A chronological log of every admin action — logins, order status changes, product additions, and more.
+  </Tab>
+  <Tab title="Personalizar">
+    Brand color pickers and logo upload. See [Customize Kiosco store branding and colors](/features/customization) for full details.
+  </Tab>
+  <Tab title="Configuración">
+    Business name, phone, RUC, address, delivery cost, free-delivery minimum, payment methods, and delivery windows.
+  </Tab>
+</Tabs>
+
+## Dashboard tab
+
+### Stats grid
+
+Three metric cards update automatically whenever orders or products change:
+
+| Metric | What it counts |
+|---|---|
+| **Productos** | Total product entries across all categories |
+| **Pedidos** | Total orders in the system (all time) |
+| **Ingresos** | Sum of every order's `total` field, displayed as `S/ X.XX` |
+
+The stats refresh in real time via `window` event listeners. When any part of the app calls `saveOrders()` or `saveProducts()`, those functions dispatch `ordersUpdated` and `productsUpdated` events respectively. The admin page listens for both and calls `loadAdminData()` and `updateStats()` automatically.
+
+### Products sub-tab
+
+Use the **Productos** sub-tab to add, edit, and remove products.
+
+**Adding a product:**
+
+<Steps>
+  <Step title="Select a category">
+    Choose an existing category from the dropdown.
+  </Step>
+  <Step title="Fill in the fields">
+    Enter the product name, sale price (S/), stock quantity, and cost price (S/). Cost defaults to 60% of the sale price if left blank.
+  </Step>
+  <Step title="Click Agregar">
+    The product appears in the list immediately and the stats grid updates.
+  </Step>
+</Steps>
+
+Each product row shows:
+- A thumbnail if images have been uploaded (via the **Imágenes** button)
+- Name, price, stock, and cost
+- **Stock** button — prompts for a new stock value
+- **Costo** button — prompts for a new cost value
+- **Imágenes** button — opens the image gallery modal
+- Delete button — asks for confirmation before removing the product and its images
+
+### Categories sub-tab
+
+Switch to the **Categorías** sub-tab to add or delete whole categories.
+
+- **Adding:** Type the category name and click **Agregar**. An empty category is created immediately and appears in the products dropdown.
+- **Deleting:** Click the delete button next to a category. A confirmation dialog warns you that all products in that category will also be deleted.
+
+### Real-time orders list
+
+Below the product panel is the orders section, filtered by date range.
+
+**Date filter buttons:**
+
+| Button | Range |
+|---|---|
+| **Hoy** | Orders placed today (matches calendar date) |
+| **Semana** | Orders from the last 7 days |
+| **Mes** | Orders from the last calendar month |
+
+Each order card shows:
+
+- Order date and time (Peru locale)
+- Customer name and phone
+- Payment method, delivery address, delivery window, and scheduled date (when present)
+- Line items: `• Product name × qty = S/ total`
+- A status badge and a **status dropdown** to change the order's state
+- A **Eliminar** button to permanently delete the order
+- A **Notificar llegada** button (visible for non-delivered, non-rejected orders with a phone on file) — marks the order as `en_camino` and pushes a notification to the customer
+
+**Order statuses:**
+
+<AccordionGroup>
+  <Accordion title="Pendiente">
+    Default status when an order is created. The customer is waiting for confirmation.
+  </Accordion>
+  <Accordion title="Confirmado">
+    You have accepted the order and it is being prepared.
+  </Accordion>
+  <Accordion title="Preparando">
+    The order is actively being assembled.
+  </Accordion>
+  <Accordion title="En camino">
+    The order has left and is on its way to the customer.
+  </Accordion>
+  <Accordion title="Entregado">
+    The order was successfully delivered. Changing to this status is final from a fulfillment perspective.
+  </Accordion>
+  <Accordion title="Programado">
+    The order is scheduled for a future delivery window.
+  </Accordion>
+  <Accordion title="Rechazado">
+    The order was declined.
+  </Accordion>
+</AccordionGroup>
+
+Changing the status dropdown triggers `updateOrderStatus()`, re-renders the list, and writes an entry to the activity log.
+
+### Exporting reports
+
+Two export buttons sit alongside the date filter:
+
+- **Excel** — Downloads an `.xls` file of the currently filtered orders, including number, date, customer, payment method, products, total, and status. A summary row at the bottom shows the grand total and order count.
+- **PDF** — Opens a print-ready HTML page in a new browser tab and triggers the browser's print dialog. The same columns appear in the printed layout.
+
+<Warning>
+  Both export buttons use the orders currently visible in the filtered list. Switch the date filter before exporting to capture the period you need.
+</Warning>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Sales reports and analytics" icon="chart-line" href="/features/reports-analytics">
+    Revenue charts, peak hours, top customers, and profitable products
+  </Card>
+  <Card title="Customize store branding" icon="palette" href="/features/customization">
+    Change brand colors and upload your logo
+  </Card>
+  <Card title="Products and categories setup" icon="box" href="/setup/products-categories">
+    Detailed guide to building your product catalog
+  </Card>
+  <Card title="Order management" icon="truck" href="/features/order-management">
+    Full order lifecycle and delivery scheduling
+  </Card>
+</CardGroup>

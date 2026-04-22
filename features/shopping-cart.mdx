@@ -1,0 +1,167 @@
+---
+title: "Shopping cart and checkout flow in Kiosco"
+description: "How the Kiosco cart works — adding items, selecting a delivery address on the map, choosing a payment method, and confirming the order with optional invoice."
+---
+
+Kiosco's cart and checkout flow is entirely client-side. No server is involved — the cart lives in memory while the shopper browses, and the finalized order is written to `localStorage` by `addOrder()` in `database.js`. The flow moves through three distinct screens: the cart modal, the customer data and payment form, and a confirmation that fires confetti and sends a WhatsApp summary to the admin.
+
+## Cart state
+
+The cart is a JavaScript array held in the module-level `cart` variable in `client.js`. Each item in the array follows this shape:
+
+```javascript client.js
+{
+  id: number,
+  name: string,
+  price: number,
+  quantity: number,
+  // image is not stored in cart state;
+  // images are fetched from kiosco_product_images by product id at render time
+}
+```
+
+Items are added by `addToCart(product)`. If the product is already in the cart, its `quantity` increments by one (up to the available stock). If it is new, a new entry is pushed with `quantity: 1`.
+
+## Floating cart button
+
+A fixed action button (`#cartFab`) sits in the corner of the storefront at all times. A red badge (`#cartBadge`) over the button displays the total number of items currently in the cart. The count updates every time `updateCartUI()` runs.
+
+Clicking the button opens the cart modal. Clicking the backdrop or the close button (`×`) dismisses it.
+
+## Cart modal
+
+The modal (`#cartModal`) lists every cart item with controls to adjust quantity or remove the item entirely.
+
+<CardGroup cols={2}>
+  <Card title="Item row" icon="list">
+    Each row shows the product name, unit price, quantity stepper (– and + buttons), a trash button to remove the item, and the line total.
+  </Card>
+  <Card title="Delivery cost" icon="truck">
+    The subtotal, delivery cost, and grand total are computed by `updateCartUI()` on every change. Delivery is free when the subtotal meets the free-delivery threshold.
+  </Card>
+</CardGroup>
+
+### Delivery cost calculation
+
+Delivery cost is read from `kiosco_settings` in `localStorage`. The defaults are S/ 3.00 for delivery and S/ 20.00 as the free-delivery minimum.
+
+```javascript client.js
+const settings = getSettings();
+const deliveryCost = subtotal >= (settings.freeDeliveryMin || 20)
+  ? 0
+  : (settings.deliveryCost || 3);
+```
+
+<Note>
+  The admin can change both `deliveryCost` and `freeDeliveryMin` from the settings panel. The storefront picks up the new values immediately — no page reload is needed.
+</Note>
+
+## Checkout flow
+
+Clicking "Continuar" in the cart modal validates that the cart is not empty, then calls `showPaymentForm()`, which renders the full customer data and checkout modal.
+
+<Steps>
+  <Step title="Open cart">
+    Shopper clicks the cart FAB. The cart modal opens showing all items, the subtotal, delivery cost, and total.
+  </Step>
+  <Step title="Review and continue">
+    Shopper reviews the items and clicks "Continuar". If the cart is empty, a toast error appears and the flow stops.
+  </Step>
+  <Step title="Fill customer data">
+    The payment form modal opens. The shopper enters their name and phone number.
+  </Step>
+  <Step title="Choose payment method">
+    A dropdown lists the payment methods configured by the admin. Selecting a method shows the corresponding payment instructions below the dropdown (e.g., Yape QR number, bank account details, or cash-on-delivery notice).
+  </Step>
+  <Step title="Select delivery window">
+    The shopper picks a date and a time-window slot (e.g., "10:00-12:00"). Available windows come from `getDeliveryWindows()` in `database.js`.
+  </Step>
+  <Step title="Set delivery address">
+    The shopper types their address into a text field. An embedded Leaflet map lets them drop a pin to set precise coordinates. If the browser grants geolocation permission, the map centers on the shopper's current position automatically and reverse-geocodes the address via Nominatim.
+  </Step>
+  <Step title="Optional: request invoice">
+    A checkbox labeled "Generar factura electrónica" reveals RUC and fiscal address fields. If checked, `generateInvoice()` runs on order confirmation and downloads an HTML invoice file.
+  </Step>
+  <Step title="Confirm order">
+    Clicking "Confirmar pedido" validates all required fields, calls `addOrder()`, fires the confetti animation, sends a WhatsApp order summary to the admin, and clears the cart.
+  </Step>
+</Steps>
+
+## Delivery address and map
+
+The Leaflet map inside the checkout form is initialized by `initMap()` after the payment form modal renders. It defaults to Lima, Peru (`[-12.0464, -77.0428]`) and uses CartoDB light tiles.
+
+<AccordionGroup>
+  <Accordion title="Pin drop">
+    Clicking anywhere on the map places a marker at that location. The coordinates are stored in `currentLocation` and sent with the order. The address field is reverse-geocoded via the Nominatim API and filled in automatically.
+  </Accordion>
+  <Accordion title="Geolocation">
+    If the browser allows it, `navigator.geolocation.getCurrentPosition` recenters the map on the shopper's current position and places a marker there, also filling the address field via reverse geocoding.
+  </Accordion>
+</AccordionGroup>
+
+## Delivery options
+
+The checkout form requires the customer to select a delivery date and a time window from the configured list. The date picker is limited to today plus up to three days ahead.
+
+<Tabs>
+  <Tab title="Traer ahora (immediate)">
+    The shopper selects today's date and the earliest available window. All orders — regardless of payment method — are created with status `pendiente` by `addOrder()` in `database.js`. The admin then moves the order forward through the pipeline.
+  </Tab>
+  <Tab title="Programar (scheduled)">
+    The shopper selects a future date and window. When the admin calls `scheduleDelivery()`, the order status changes to `programado`. Automated reminders are then sent via the browser Notification API at one hour and thirty minutes before the scheduled window.
+  </Tab>
+</Tabs>
+
+## Payment methods
+
+The payment method dropdown is populated from `getPaymentMethods()`, which reads the list from `kiosco_settings`. The default methods are:
+
+| Method key | Display name | Instructions shown |
+|---|---|---|
+| `yape` | Yape | QR or phone number |
+| `plin` | Plin | Phone number |
+| `transferencia` | Transferencia bancaria | Bank account and CCI |
+| `efectivo` | Pago contra entrega | Pay on delivery |
+
+<Info>
+  The admin can restrict which payment methods appear by editing the `paymentMethods` array in settings. Only the methods in that array will show in the customer's dropdown.
+</Info>
+
+## Order confirmation
+
+When `addOrder()` succeeds, the following things happen in sequence:
+
+1. The payment form modal is removed from the DOM.
+2. A success toast shows the new order number.
+3. `showConfetti()` fires a two-burst confetti animation via the `canvas-confetti` library.
+4. A pre-filled WhatsApp message is composed with the order summary (items, total, address, payment method, delivery window) and opened in a new tab so the admin receives an instant notification.
+5. `cart` is reset to an empty array and `updateCartUI()` re-renders the empty cart.
+
+```javascript client.js
+function showConfetti() {
+    if (typeof canvasConfetti !== 'undefined') {
+        canvasConfetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        setTimeout(() => canvasConfetti({ particleCount: 100, spread: 100, origin: { y: 0.7 } }), 200);
+    }
+}
+```
+
+## Invoice generation
+
+If the shopper checks "Generar factura electrónica" and provides a RUC, `generateInvoice(order)` in `database.js` runs automatically on order confirmation. It creates a factura record, saves it to `kiosco_invoices` in `localStorage`, generates a standalone HTML file, and triggers a browser download.
+
+<Warning>
+  The invoice download is triggered by a temporary object URL. Some mobile browsers block automatic downloads. If the download does not start, the invoice is still saved to `kiosco_invoices` and can be retrieved from the admin panel.
+</Warning>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Kiosco storefront" icon="store" href="/features/storefront">
+    How customers browse the catalog and add items to the cart.
+  </Card>
+  <Card title="Order tracking" icon="package-search" href="/features/order-tracking">
+    How customers follow their orders after checkout.
+  </Card>
+</CardGroup>

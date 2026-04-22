@@ -1,0 +1,151 @@
+---
+title: "Manage orders and delivery status in Kiosco"
+description: "Manage the complete Kiosco order lifecycle — confirm, update status, set delivery times, export reports, and handle scheduled orders with auto-reminders."
+---
+
+Every order placed by a customer is immediately visible in the admin dashboard. Kiosco gives you a real-time list of orders, tools to move each order through its delivery stages, and export options when you need a paper or spreadsheet record of your sales.
+
+## Order statuses
+
+Each order moves through a set of statuses from the moment it is placed until it is delivered or rejected.
+
+<AccordionGroup>
+  <Accordion title="pendiente — awaiting confirmation">
+    The order has been received and is waiting for the admin to review it. This is the initial status assigned by `addOrder()` in `database.js`.
+  </Accordion>
+  <Accordion title="confirmado — confirmed">
+    The admin has accepted the order. The customer is notified that the order is being prepared.
+  </Accordion>
+  <Accordion title="preparando — actively being prepared">
+    The order is being assembled or cooked. A notification is sent to the customer.
+  </Accordion>
+  <Accordion title="en_camino — out for delivery">
+    The order has left the store and is on its way. The customer receives a message that their order will arrive in approximately 10–15 minutes.
+  </Accordion>
+  <Accordion title="entregado — delivered">
+    The order was successfully delivered. The customer receives a thank-you notification and the order card is marked done.
+  </Accordion>
+  <Accordion title="rechazado — rejected">
+    The admin has rejected the order. The customer is notified and advised to contact the store for more information.
+  </Accordion>
+  <Accordion title="programado — scheduled">
+    The order has been scheduled for a future delivery window. It appears in the customer portal's "Programados" tab and in the admin order list with a scheduled date.
+  </Accordion>
+</AccordionGroup>
+
+## Viewing orders in the dashboard
+
+When you log in to the admin panel, the orders list loads automatically. Orders are sorted newest-first and can be filtered by time period using the buttons at the top of the list.
+
+<Tabs>
+  <Tab title="Today">
+    Shows only orders placed on the current calendar day. This is the default view when you open the dashboard.
+  </Tab>
+  <Tab title="This week">
+    Shows all orders from the past 7 days.
+  </Tab>
+  <Tab title="This month">
+    Shows all orders from the past 30 days.
+  </Tab>
+</Tabs>
+
+Each order card displays:
+
+- Date and time placed
+- Customer name and phone number
+- Payment method and total
+- Delivery address
+- Delivery window and scheduled date (if applicable)
+- Estimated delivery time (if set)
+- Itemized list of products
+- Current status badge
+- Collapsible history log
+
+## Changing order status
+
+Each order card contains a status dropdown. Selecting a new value calls `updateOrderStatus()`, which saves the new status and automatically sends a notification to the customer through `notifyCustomerStatusChange()`.
+
+<Steps>
+  <Step title="Find the order">
+    Scroll the orders list or use the time-period filter to locate the order you want to update.
+  </Step>
+  <Step title="Select the new status">
+    Open the status dropdown on the order card and choose the appropriate status.
+  </Step>
+  <Step title="Confirm the change">
+    The status updates immediately. The customer receives a real-time notification reflecting the new state.
+  </Step>
+</Steps>
+
+<Note>
+  Changing status to `en_camino` can also be triggered by the "Notificar llegada" button, which simultaneously updates the status and sends a specialized arrival message to the customer.
+</Note>
+
+## Setting estimated delivery time
+
+The `estimatedTime` field on an order stores the estimated number of minutes until delivery. When this value is set, it appears on the order card so you can communicate timing to your customer alongside the status update.
+
+## Order history
+
+Every status change is appended to the order's `history` array with a timestamp and an optional note. You can expand the history panel on any order card to review the full audit trail.
+
+```json
+{
+  "history": [
+    { "status": "pendiente", "date": "2026-04-22T10:00:00.000Z", "note": "Pedido creado" },
+    { "status": "confirmado", "date": "2026-04-22T10:05:00.000Z", "note": "" },
+    { "status": "en_camino", "date": "2026-04-22T10:30:00.000Z", "note": "" }
+  ]
+}
+```
+
+## Deleting an order
+
+Click the delete button on any order card. A confirmation dialog appears before the order is permanently removed. Deletion is logged in the activity log.
+
+<Warning>
+  Deleting an order is permanent. There is no way to recover it after confirming the deletion. Export the order data first if you need a record.
+</Warning>
+
+## Exporting orders
+
+You can download the currently visible orders (filtered by the active time period) in two formats.
+
+<CardGroup cols={2}>
+  <Card title="Excel report" icon="table" href="/features/reports-analytics">
+    Downloads an `.xls` file with a table of all orders in the current filter period — order number, date, customer, payment method, items, total, and status.
+  </Card>
+  <Card title="PDF report" icon="file-text" href="/features/reports-analytics">
+    Opens a print-ready HTML page in a new tab and triggers the browser print dialog.
+  </Card>
+</CardGroup>
+
+<Info>
+  Both exports reflect whichever time-period filter is active when you click the download button. Switch to "This month" before exporting if you need a full monthly report.
+</Info>
+
+## Scheduled orders
+
+When a customer selects a future delivery date and window at checkout, their order receives a `deliveryWindow` and `deliveryDate` field and its status is set to `programado`. Kiosco checks for upcoming scheduled deliveries every minute and sends reminder notifications to customers:
+
+- **1 hour before** the window: a standard reminder is sent.
+- **30 minutes before** the window: an urgent reminder is sent.
+
+Scheduled orders appear in the admin order list like any other order and can have their status changed at any time.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Admin dashboard" icon="layout-dashboard" href="/features/admin-dashboard">
+    Overview of the admin panel and all available sections.
+  </Card>
+  <Card title="Reports and analytics" icon="chart-bar" href="/features/reports-analytics">
+    Sales charts, peak hours, and profitability reports.
+  </Card>
+  <Card title="Order tracking" icon="map-pin" href="/features/order-tracking">
+    How customers track their order status in real time.
+  </Card>
+  <Card title="Payment methods" icon="credit-card" href="/features/payment-methods">
+    How payment method affects the order confirmation flow.
+  </Card>
+</CardGroup>

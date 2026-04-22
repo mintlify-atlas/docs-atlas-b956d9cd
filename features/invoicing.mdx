@@ -1,0 +1,157 @@
+---
+title: "Electronic invoicing (factura electrónica) in Kiosco"
+description: "Generate factura electrónica with 18% IGV automatically when customers opt in at checkout. Invoices download as HTML with full itemization."
+---
+
+Kiosco can generate a factura electrónica for any order. Customers opt in at checkout by checking a box, and the invoice is created and downloaded automatically when the order is placed. All invoices are stored locally so you can retrieve them at any time.
+
+## How customers request an invoice
+
+The invoice option is available on the payment form at checkout.
+
+<Steps>
+  <Step title="Reach the checkout form">
+    After adding items to the cart, the customer clicks "Continuar" in the cart modal and the payment form opens.
+  </Step>
+  <Step title="Check 'Generar factura electrónica'">
+    A checkbox near the bottom of the form controls whether an invoice is generated. It is unchecked by default.
+  </Step>
+  <Step title="Enter optional billing details">
+    Checking the box reveals two optional fields: RUC (tax ID) and billing address (`customerRUC`, `customerAddress`). These are included in the invoice if provided.
+  </Step>
+  <Step title="Confirm the order">
+    When the customer submits the order, `addOrder()` detects that `generateInvoice` is `true` and immediately calls `generateInvoice()`, which creates the invoice, saves it, and triggers a browser download.
+  </Step>
+</Steps>
+
+## Invoice numbering
+
+Invoices are numbered sequentially using the format `F001-XXXXXXXX`, where `XXXXXXXX` is the invoice count padded to 8 digits.
+
+```
+F001-00000001   ← first invoice ever generated
+F001-00000002   ← second invoice
+F001-00000042   ← forty-second invoice
+```
+
+The number is derived from the current length of the `kiosco_invoices` array at the time of generation. Because invoices are prepended (newest first), the count is always incremented by 1 for each new invoice.
+
+<Warning>
+  Invoice numbers are based on the array length at generation time. Manually deleting entries from `localStorage` will cause numbering gaps or duplicates. Do not edit the `kiosco_invoices` array directly.
+</Warning>
+
+## What an invoice contains
+
+Each invoice includes a full breakdown of the order.
+
+<AccordionGroup>
+  <Accordion title="Business information">
+    Business name, RUC, and address — pulled from the settings configured in the admin panel under Configuración.
+  </Accordion>
+  <Accordion title="Customer information">
+    Customer name and phone number. If provided at checkout, also includes RUC and billing address.
+  </Accordion>
+  <Accordion title="Itemized product table">
+    One row per line item: quantity, product name, unit price, and line total.
+  </Accordion>
+  <Accordion title="Totals section">
+    Subtotal (total minus delivery cost), IGV at 18% of the subtotal, and the order total.
+  </Accordion>
+  <Accordion title="Payment and delivery details">
+    The payment method used and the delivery address.
+  </Accordion>
+</AccordionGroup>
+
+### Invoice object structure
+
+```json
+{
+  "id": 1745308800000,
+  "number": "F001-00000001",
+  "orderId": 1745308800000,
+  "orderNumber": 42,
+  "customerName": "Ana García",
+  "customerPhone": "+51987654321",
+  "customerRUC": "20123456789",
+  "customerAddress": "Av. Javier Prado 1234, Lima",
+  "date": "2026-04-22T10:00:00.000Z",
+  "items": [
+    { "quantity": 2, "name": "Coca Cola 500ml", "price": 3.50 },
+    { "quantity": 1, "name": "Papas Lays", "price": 4.00 }
+  ],
+  "subtotal": 11.00,
+  "igv": 1.98,
+  "total": 14.00,
+  "paymentMethod": "yape",
+  "deliveryAddress": "Av. Javier Prado 1234, Lima",
+  "businessName": "Kiosco",
+  "businessRUC": "10987654321",
+  "businessAddress": "Jr. Lima 100, Miraflores"
+}
+```
+
+### IGV calculation
+
+Kiosco applies Peru's standard VAT rate of 18% to the order subtotal (the item total before delivery cost).
+
+```
+subtotal = order.total - order.deliveryCost
+igv      = subtotal × 0.18
+```
+
+<Info>
+  The `igv` figure in the invoice represents the tax included in the subtotal, following the standard Peruvian invoice format where prices are shown inclusive of IGV and then broken out separately.
+</Info>
+
+## How invoices are stored
+
+Invoices are saved in `localStorage` under the key `kiosco_invoices` as a JSON array. Each new invoice is prepended with `Array.unshift()`, so the array is always ordered newest-first.
+
+```javascript
+// Retrieve all invoices
+const invoices = JSON.parse(localStorage.getItem('kiosco_invoices')) || [];
+```
+
+You can also use `getInvoices()` from `database.js`, which handles the parsing and returns an empty array if no invoices exist yet.
+
+<Note>
+  Because invoices are stored in `localStorage`, they are tied to the browser where the admin panel is running. Clearing browser storage will permanently delete all invoice records.
+</Note>
+
+## Retrieving past invoices
+
+Call `getInvoices()` to retrieve the full array of saved invoices, sorted newest-first:
+
+```javascript
+const invoices = getInvoices();
+// invoices[0] is the most recent invoice
+```
+
+The returned array contains the full invoice objects as described in the structure above.
+
+## Invoice download format
+
+When an invoice is generated, the HTML file is automatically downloaded to the user's browser. The filename follows the pattern:
+
+```
+factura_F001-00000001.html
+```
+
+The downloaded file is a self-contained HTML page with inline CSS that can be opened in any browser, printed, or shared with the customer directly.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Order management" icon="list-ordered" href="/features/order-management">
+    How the order lifecycle works from placement to delivery.
+  </Card>
+  <Card title="Payment methods" icon="credit-card" href="/features/payment-methods">
+    Which payment methods are available and how to configure them.
+  </Card>
+  <Card title="LocalStorage API reference" icon="database" href="/reference/localstorage-api">
+    Full reference for all localStorage keys used by Kiosco.
+  </Card>
+  <Card title="Setup: configuration" icon="settings" href="/setup/configuration">
+    How to set your business name, RUC, and address for invoices.
+  </Card>
+</CardGroup>

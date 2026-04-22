@@ -1,0 +1,94 @@
+---
+title: "What is Kiosco? Browser-based virtual kiosk"
+description: "Kiosco is a self-contained virtual kiosk for small businesses. Run a complete online store with no server, no database, and no installation needed."
+---
+
+Kiosco is a browser-based virtual store built for small kiosks and delivery businesses, particularly those operating in Peru. It runs entirely in the browser using `localStorage` as its database — no server, no installation, and no backend required. Open a single HTML file and you have a fully functional online store with a product catalog, shopping cart, order management system, admin dashboard, and electronic invoicing.
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Product catalog" icon="store" href="/setup/products-categories">
+    Organize products into emoji-labeled categories with pricing, stock levels, cost tracking, and a multi-image gallery per product.
+  </Card>
+  <Card title="Shopping cart" icon="cart-shopping" href="/features/shopping-cart">
+    Customers browse, filter by price or name, add items to cart, and check out with a delivery address or a scheduled delivery window.
+  </Card>
+  <Card title="Order management" icon="truck" href="/features/order-management">
+    Manage the full order lifecycle — pending, confirmed, preparing, on the way, delivered — with per-order history and push notification updates.
+  </Card>
+  <Card title="Admin dashboard" icon="chart-line" href="/features/admin-dashboard">
+    View real-time stats on products, orders, and revenue. Filter by day, week, or month and export reports to Excel or PDF.
+  </Card>
+  <Card title="Reports & analytics" icon="chart-bar" href="/features/reports-analytics">
+    Revenue and sales charts, peak-hour analysis, top customers by spend, and most profitable products by margin.
+  </Card>
+  <Card title="Electronic invoicing" icon="file-invoice" href="/features/invoicing">
+    Generate a factura electrónica per order with an IGV (18%) breakdown. The invoice is auto-downloaded as a self-contained HTML file.
+  </Card>
+  <Card title="Payment methods" icon="credit-card" href="/features/payment-methods">
+    Accept Yape, Plin, bank transfer, or cash on delivery. Configure which methods are available through the admin settings panel.
+  </Card>
+  <Card title="PWA support" icon="mobile" href="/reference/pwa">
+    Kiosco ships with a service worker and web manifest. Customers and admins can install it on their phones and use it offline.
+  </Card>
+</CardGroup>
+
+## Who it's for
+
+Kiosco is designed for small business owners who need a working online store quickly — without paying for hosting, learning a backend framework, or managing a database. It is particularly suited to:
+
+- **Kiosk owners** selling snacks, beverages, and everyday goods to walk-in and delivery customers
+- **Delivery businesses in Peru** that accept Yape and Plin as primary payment methods and need scheduled delivery windows
+- **Solo operators** who want to manage everything from a phone or tablet without a dedicated point-of-sale system
+
+<Note>
+  Kiosco uses Peruvian phone number formats (`+51...`) and Peruvian sol (`S/`) as currency by default. The invoicing system includes IGV (18% VAT) as required by SUNAT regulations.
+</Note>
+
+## How it works
+
+Kiosco stores all data — products, orders, settings, invoices, activity logs — in the browser's `localStorage`. There is no network request to a backend. When a customer places an order, the data is written to `localStorage` on their device. The admin reads that same data when viewing the order list.
+
+This design means:
+
+- **Zero infrastructure cost.** Deploy to any static file host: GitHub Pages, Netlify, Vercel, or even a USB drive.
+- **Works offline.** Once loaded, the app continues to function without an internet connection thanks to the service worker.
+- **Data stays local.** Nothing leaves the browser. This makes Kiosco appropriate for operators who prefer not to rely on third-party cloud services.
+
+<Tip>
+  Because data lives in `localStorage`, it is scoped to the browser and device. If you want multiple devices to share the same order list, deploy Kiosco to a hosted URL and access it from each device — they will each maintain their own local data. See [Deployment](/reference/deployment) for hosting options.
+</Tip>
+
+## The three pages
+
+Kiosco consists of three HTML pages, each serving a distinct role:
+
+| Page | File | Who uses it |
+|------|------|-------------|
+| Customer store | `index.html` | Customers browse the catalog, add items to the cart, and place orders |
+| Admin panel | `admin.html` | The store owner manages products, orders, settings, and analytics |
+| Order tracking | `client-orders.html` | Customers look up their order history and real-time status by phone number |
+
+<CardGroup cols={3}>
+  <Card title="Customer store" icon="shop" href="/features/storefront">
+    The public-facing storefront. Customers see categories, search and filter products, add to cart, choose a payment method, and submit their order.
+  </Card>
+  <Card title="Admin panel" icon="sliders" href="/features/admin-dashboard">
+    Password-protected by phone number. Tabs for Dashboard, Reports, Activity log, Customization, and Settings.
+  </Card>
+  <Card title="Order tracking" icon="magnifying-glass" href="/features/order-tracking">
+    Customers enter their phone number to see all their past orders and live status updates without needing an account.
+  </Card>
+</CardGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Get started" icon="rocket" href="/quickstart">
+    Open the store, log in to the admin panel, add products, and place your first test order.
+  </Card>
+  <Card title="Configure your store" icon="gear" href="/setup/configuration">
+    Set your business name, RUC, delivery cost, operating hours, and payment methods.
+  </Card>
+</CardGroup>

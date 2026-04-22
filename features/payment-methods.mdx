@@ -1,0 +1,121 @@
+---
+title: "Payment methods: Yape, Plin, transfer, and cash"
+description: "Kiosco supports four payment methods — Yape, Plin, bank transfer, and cash on delivery. Learn how each affects order confirmation and payment verification."
+---
+
+Kiosco ships with four built-in payment methods: Yape, Plin, bank transfer (BCP), and cash on delivery. You can enable or disable any of them and add custom methods from the admin settings panel. The methods you configure are the only ones customers see at checkout.
+
+## Supported payment methods
+
+<AccordionGroup>
+  <Accordion title="Yape — mobile wallet">
+    The customer scans a QR code or transfers to **+51 914 491 874** using the Yape app. This is a digital payment that requires admin verification before the order is confirmed.
+  </Accordion>
+  <Accordion title="Plin — mobile wallet">
+    The customer transfers to **+51 914 491 874** using the Plin app. Like Yape, this is a digital payment and requires admin verification.
+  </Accordion>
+  <Accordion title="Transferencia bancaria — bank transfer (BCP)">
+    The customer transfers to a BCP account. The account details are shown to the customer at checkout. Admin verification is required before confirming the order.
+  </Accordion>
+  <Accordion title="Efectivo — cash on delivery">
+    The customer pays in cash when the order is delivered. No upfront verification is needed. The `paymentConfirmed` field on the order is automatically set to `true` when the order is placed.
+  </Accordion>
+</AccordionGroup>
+
+## How customers select a payment method
+
+When a customer proceeds to checkout, the payment form displays a dropdown list containing all currently enabled payment methods. Selecting a method immediately shows the corresponding instructions below the dropdown — for example, the phone number for Yape or the bank account for transfers.
+
+The instructions for each method come from `getPaymentMethodDetails()` in `database.js`:
+
+| Method | Icon | Instructions shown at checkout |
+|---|---|---|
+| yape | 📱 | Scan the QR code or transfer to +51 914 491 874 |
+| plin | 📱 | Transfer to +51 914 491 874 |
+| transferencia | 🏦 | BCP — account details shown |
+| efectivo | 💵 | Pay in cash when you receive your order |
+
+## How payment method affects order confirmation
+
+The payment method determines whether `paymentConfirmed` is set automatically and how the admin should handle the order.
+
+<Tabs>
+  <Tab title="Digital payments (Yape, Plin, transfer)">
+    `paymentConfirmed` starts as `false`. The admin needs to verify that the payment was received (by checking their Yape, Plin, or bank app) before moving the order to `confirmado`. Until payment is verified, the order remains at `pendiente`.
+  </Tab>
+  <Tab title="Cash on delivery">
+    `paymentConfirmed` is automatically set to `true` when the order is placed, because no upfront transfer is required. The admin only needs to ensure physical delivery and collect cash at the door.
+  </Tab>
+</Tabs>
+
+<Info>
+  The `paymentConfirmed` field is part of the order object stored in `localStorage` under the key `kiosco_orders`. You can inspect it in the browser's Application tab for debugging.
+</Info>
+
+## Configuring payment methods in the admin panel
+
+Payment methods are managed in **Configuración → Métodos de pago** in the admin dashboard.
+
+<Steps>
+  <Step title="Open the admin panel">
+    Log in with your admin phone number and navigate to the Configuración tab.
+  </Step>
+  <Step title="Review the current list">
+    The "Métodos de pago" section lists all currently enabled methods. Each entry has a delete button.
+  </Step>
+  <Step title="Remove a method">
+    Click the delete button next to any method to remove it immediately. Customers will no longer see it at checkout.
+  </Step>
+  <Step title="Add a method">
+    Click the "Agregar" button. A prompt asks for the method name. The name is saved in lowercase with underscores replacing spaces (e.g., "Transferencia Pago" becomes `transferencia_pago`).
+  </Step>
+</Steps>
+
+<Warning>
+  Removing a payment method only affects new orders. Existing orders retain their original `paymentMethod` value even after you remove the method from the settings.
+</Warning>
+
+## Adding a custom payment method
+
+You can add any payment method your business accepts. The name you enter becomes both the internal key stored in `settings.paymentMethods` and the label shown to customers.
+
+```json
+// Example: settings stored in localStorage under 'kiosco_settings'
+{
+  "paymentMethods": ["yape", "plin", "transferencia", "efectivo", "mercado_pago"]
+}
+```
+
+<Note>
+  Custom payment methods do not have built-in instructions. The instructions block at checkout will be empty for unrecognised keys. To add instructions for a custom method, you would need to extend `getPaymentMethodDetails()` in `database.js`.
+</Note>
+
+## The paymentConfirmed field
+
+`paymentConfirmed` is a boolean on each order object. It signals whether the payment has been received and allows the admin to track which orders still need verification.
+
+<AccordionGroup>
+  <Accordion title="When paymentConfirmed is true">
+    Set automatically for cash orders at creation time. For digital methods, the admin sets this field (by changing status) after verifying the transfer in their payment app.
+  </Accordion>
+  <Accordion title="When paymentConfirmed is false">
+    The default for Yape, Plin, and transfer orders. The admin should verify payment before confirming the order.
+  </Accordion>
+</AccordionGroup>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Order management" icon="list-ordered" href="/features/order-management">
+    How order status changes interact with payment confirmation.
+  </Card>
+  <Card title="Setup: payment methods" icon="settings" href="/setup/payment-methods">
+    Step-by-step setup guide for configuring payment options.
+  </Card>
+  <Card title="Invoicing" icon="receipt" href="/features/invoicing">
+    Generate electronic invoices with IGV breakdown at checkout.
+  </Card>
+  <Card title="Admin dashboard" icon="layout-dashboard" href="/features/admin-dashboard">
+    Overview of all admin settings and configuration options.
+  </Card>
+</CardGroup>

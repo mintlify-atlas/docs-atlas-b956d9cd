@@ -1,0 +1,500 @@
+---
+title: "Kiosco data model and localStorage schema"
+description: "Complete reference for all localStorage keys Kiosco uses — products, orders, settings, theme, invoices, activity log, product images, and notifications."
+---
+
+Kiosco persists all application state in the browser's `localStorage`. There is no external database or server — every object described below lives in the visitor's browser under a namespaced key. Understanding these shapes is useful when extending Kiosco, migrating data, or debugging unexpected behavior.
+
+## Storage keys
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `kiosco_products` | Object | Product catalog grouped by category |
+| `kiosco_orders` | Array | All orders, newest first |
+| `kiosco_settings` | Object | Business configuration |
+| `kiosco_theme` | Object | Brand color overrides |
+| `kiosco_invoices` | Array | Generated invoices, newest first |
+| `kiosco_activity_log` | Array | Admin audit trail, max 500 entries |
+| `kiosco_customer_notifications` | Object | Per-phone notification queues |
+| `kiosco_product_images` | Object | Base64 images keyed by product ID |
+| `kiosco_logo` | String | Base64 business logo |
+| `kiosco_admin_phone` | String | Phone number with admin privileges |
+
+---
+
+## Product catalog
+
+**localStorage key:** `kiosco_products`
+
+The product catalog is a plain object whose keys are category names (including any emoji prefix) and whose values are arrays of product objects. Categories and products within each category are displayed in insertion order.
+
+```json
+{
+  "🥤 Bebidas": [
+    { "id": 1, "name": "Coca Cola 500ml", "price": 3.5, "stock": 50, "cost": 2.0 }
+  ],
+  "🍿 Snacks": [
+    { "id": 5, "name": "Papas Lays", "price": 4.0, "stock": 20, "cost": 2.5 }
+  ]
+}
+```
+
+### Product fields
+
+<ResponseField name="id" type="number" required>
+  Integer identifier for the product. Used as the key when storing product images. Must be unique across all categories.
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Display name shown to customers on the storefront.
+</ResponseField>
+
+<ResponseField name="price" type="number" required>
+  Sale price in Peruvian soles (S/).
+</ResponseField>
+
+<ResponseField name="stock" type="number" required>
+  Available units in inventory. The storefront uses this to prevent overselling.
+</ResponseField>
+
+<ResponseField name="cost" type="number" required>
+  Acquisition cost per unit in soles. Used by the profitability analytics report. If missing, analytics fall back to 60% of the sale price.
+</ResponseField>
+
+---
+
+## Order
+
+**localStorage key:** `kiosco_orders` (array, newest first)
+
+Each order is created by `addOrder()` and updated in place by `updateOrderStatus()`. The `history` array provides a full audit trail of every status change.
+
+```json
+{
+  "id": 1700000000000,
+  "orderNumber": 1,
+  "status": "pendiente",
+  "date": "2024-01-15T10:30:00.000Z",
+  "items": [
+    { "id": 1, "name": "Coca Cola 500ml", "price": 3.5, "quantity": 2 }
+  ],
+  "customerName": "Juan Pérez",
+  "customerPhone": "987654321",
+  "subtotal": 7.0,
+  "deliveryCost": 3.0,
+  "total": 10.0,
+  "paymentMethod": "yape",
+  "paymentConfirmed": false,
+  "deliveryAddress": "Av. Los Pinos 123",
+  "deliveryCoordinates": { "lat": -12.0464, "lng": -77.0428 },
+  "scheduledDate": null,
+  "generateInvoice": false,
+  "deliveryStatus": "pendiente",
+  "estimatedTime": null,
+  "history": [
+    { "status": "pendiente", "date": "2024-01-15T10:30:00.000Z", "note": "Pedido creado" }
+  ]
+}
+```
+
+### Order fields
+
+<ResponseField name="id" type="number" required>
+  Unix timestamp in milliseconds (`Date.now()`) assigned at creation. Used as the primary key for all order lookups.
+</ResponseField>
+
+<ResponseField name="orderNumber" type="number" required>
+  Sequential display number starting at 1. Shown to customers and in notifications. Calculated as `orders.length + 1` at creation time.
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Lifecycle status of the order. Valid values: `pendiente`, `confirmado`, `preparando`, `en_camino`, `entregado`, `rechazado`, `programado`.
+</ResponseField>
+
+<ResponseField name="date" type="string" required>
+  ISO 8601 creation timestamp.
+</ResponseField>
+
+<ResponseField name="items" type="object[]" required>
+  Line items in the order.
+  <Expandable title="item fields">
+    <ResponseField name="id" type="number" required>
+      Product ID matching an entry in `kiosco_products`.
+    </ResponseField>
+    <ResponseField name="name" type="string" required>
+      Product name at the time of order (snapshot, not a live reference).
+    </ResponseField>
+    <ResponseField name="price" type="number" required>
+      Unit price at the time of order.
+    </ResponseField>
+    <ResponseField name="quantity" type="number" required>
+      Number of units ordered.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="customerName" type="string" required>
+  Full name provided by the customer at checkout.
+</ResponseField>
+
+<ResponseField name="customerPhone" type="string" required>
+  Customer phone number. Used as the key for customer notifications.
+</ResponseField>
+
+<ResponseField name="subtotal" type="number" required>
+  Sum of all item totals before delivery cost.
+</ResponseField>
+
+<ResponseField name="deliveryCost" type="number" required>
+  Delivery fee applied to this order. May be 0 if the order qualifies for free delivery.
+</ResponseField>
+
+<ResponseField name="total" type="number" required>
+  `subtotal + deliveryCost`. This is the amount the customer pays.
+</ResponseField>
+
+<ResponseField name="paymentMethod" type="string" required>
+  Payment method selected at checkout. One of: `yape`, `plin`, `transferencia`, `efectivo`.
+</ResponseField>
+
+<ResponseField name="paymentConfirmed" type="boolean" required>
+  Set to `true` automatically when `paymentMethod` is `efectivo` (cash on delivery). For digital payments, the admin confirms manually.
+</ResponseField>
+
+<ResponseField name="deliveryAddress" type="string">
+  Free-text delivery address entered by the customer.
+</ResponseField>
+
+<ResponseField name="deliveryCoordinates" type="object">
+  Geographic coordinates selected on the map widget.
+  <Expandable title="coordinate fields">
+    <ResponseField name="lat" type="number">
+      Latitude.
+    </ResponseField>
+    <ResponseField name="lng" type="number">
+      Longitude.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="scheduledDate" type="string | null">
+  ISO 8601 timestamp of the scheduled delivery. `null` for immediate orders.
+</ResponseField>
+
+<ResponseField name="generateInvoice" type="boolean">
+  When `true`, `addOrder()` calls `generateInvoice()` automatically and downloads an HTML invoice file.
+</ResponseField>
+
+<ResponseField name="deliveryStatus" type="string">
+  Tracks the delivery sub-state. Defaults to `pendiente`.
+</ResponseField>
+
+<ResponseField name="estimatedTime" type="string | null">
+  Free-text estimated delivery time shown to the customer. `null` if not set.
+</ResponseField>
+
+<ResponseField name="history" type="object[]" required>
+  Ordered list of status transitions, oldest first.
+  <Expandable title="history entry fields">
+    <ResponseField name="status" type="string" required>
+      The status that was applied.
+    </ResponseField>
+    <ResponseField name="date" type="string" required>
+      ISO 8601 timestamp of the transition.
+    </ResponseField>
+    <ResponseField name="note" type="string">
+      Optional note added by the admin when changing status.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## Settings
+
+**localStorage key:** `kiosco_settings`
+
+A single object containing all business configuration. Written by the admin panel and read by the storefront to apply delivery rules, payment options, and operating hours.
+
+```json
+{
+  "businessName": "Kiosco",
+  "businessPhone": "+51914491874",
+  "businessRUC": "",
+  "businessAddress": "",
+  "deliveryCost": 3.0,
+  "freeDeliveryMin": 20,
+  "scheduleStart": "08:00",
+  "scheduleEnd": "22:00",
+  "paymentMethods": ["yape", "plin", "transferencia", "efectivo"],
+  "deliveryWindows": ["10:00-12:00", "12:00-14:00", "14:00-16:00", "16:00-18:00", "18:00-20:00"]
+}
+```
+
+<ResponseField name="businessName" type="string">
+  Business name displayed on the storefront and printed on invoices.
+</ResponseField>
+
+<ResponseField name="businessPhone" type="string">
+  Contact phone number shown to customers.
+</ResponseField>
+
+<ResponseField name="businessRUC" type="string">
+  Tax registration number (RUC). Printed on electronic invoices. Leave blank if not applicable.
+</ResponseField>
+
+<ResponseField name="businessAddress" type="string">
+  Business address. Printed on electronic invoices.
+</ResponseField>
+
+<ResponseField name="deliveryCost" type="number">
+  Default delivery fee in soles applied to orders below `freeDeliveryMin`.
+</ResponseField>
+
+<ResponseField name="freeDeliveryMin" type="number">
+  Minimum order subtotal in soles to qualify for free delivery.
+</ResponseField>
+
+<ResponseField name="scheduleStart" type="string">
+  Opening time in `HH:MM` format. Used to restrict when orders can be placed.
+</ResponseField>
+
+<ResponseField name="scheduleEnd" type="string">
+  Closing time in `HH:MM` format.
+</ResponseField>
+
+<ResponseField name="paymentMethods" type="string[]">
+  Ordered list of enabled payment methods. Valid values: `yape`, `plin`, `transferencia`, `efectivo`.
+</ResponseField>
+
+<ResponseField name="deliveryWindows" type="string[]">
+  Time-slot strings in `HH:MM-HH:MM` format that customers can choose for scheduled deliveries.
+</ResponseField>
+
+---
+
+## Theme
+
+**localStorage key:** `kiosco_theme`
+
+Five color values that are applied as CSS custom properties on `:root` by `applyThemeToPage()`. All values must be valid CSS color strings (hex recommended).
+
+```json
+{
+  "primaryColor": "#6366f1",
+  "secondaryColor": "#10b981",
+  "dangerColor": "#ef4444",
+  "warningColor": "#f59e0b",
+  "darkColor": "#1e293b"
+}
+```
+
+<ResponseField name="primaryColor" type="string">
+  Maps to `--primary`. Used for buttons, links, and accent elements.
+</ResponseField>
+
+<ResponseField name="secondaryColor" type="string">
+  Maps to `--success`. Used for success states and confirmations.
+</ResponseField>
+
+<ResponseField name="dangerColor" type="string">
+  Maps to `--danger`. Used for destructive actions and error states.
+</ResponseField>
+
+<ResponseField name="warningColor" type="string">
+  Maps to `--warning`. Used for alerts and pending states.
+</ResponseField>
+
+<ResponseField name="darkColor" type="string">
+  Maps to `--dark`. Used for dark mode backgrounds and high-contrast text.
+</ResponseField>
+
+---
+
+## Invoice
+
+**localStorage key:** `kiosco_invoices` (array, newest first)
+
+Invoices are generated automatically by `generateInvoice()` when an order has `generateInvoice: true`. A numbered HTML file is also downloaded to the admin's device at the same time.
+
+```json
+{
+  "id": 1700000000001,
+  "number": "F001-00000001",
+  "orderId": 1700000000000,
+  "orderNumber": 1,
+  "customerName": "Juan Pérez",
+  "customerPhone": "987654321",
+  "customerRUC": "",
+  "customerAddress": "",
+  "date": "2024-01-15T10:30:00.000Z",
+  "items": [
+    { "id": 1, "name": "Coca Cola 500ml", "price": 3.5, "quantity": 2 }
+  ],
+  "subtotal": 7.0,
+  "igv": 1.26,
+  "total": 10.0,
+  "paymentMethod": "yape",
+  "deliveryAddress": "Av. Los Pinos 123",
+  "businessName": "Kiosco",
+  "businessRUC": "",
+  "businessAddress": ""
+}
+```
+
+<ResponseField name="id" type="number" required>
+  Unix timestamp in milliseconds assigned at generation time.
+</ResponseField>
+
+<ResponseField name="number" type="string" required>
+  Sequential invoice number in the format `F001-XXXXXXXX`, zero-padded to 8 digits.
+</ResponseField>
+
+<ResponseField name="orderId" type="number" required>
+  The `id` of the order this invoice was generated from.
+</ResponseField>
+
+<ResponseField name="orderNumber" type="number">
+  The display order number copied from the source order.
+</ResponseField>
+
+<ResponseField name="customerName" type="string" required>
+  Customer name copied from the order.
+</ResponseField>
+
+<ResponseField name="customerPhone" type="string">
+  Customer phone number copied from the order.
+</ResponseField>
+
+<ResponseField name="customerRUC" type="string">
+  Customer RUC for business-to-business invoicing. Empty string if not provided.
+</ResponseField>
+
+<ResponseField name="customerAddress" type="string">
+  Customer address for invoicing purposes.
+</ResponseField>
+
+<ResponseField name="date" type="string" required>
+  ISO 8601 timestamp of invoice generation.
+</ResponseField>
+
+<ResponseField name="items" type="object[]" required>
+  Line items copied from the order at generation time. Same shape as order items.
+</ResponseField>
+
+<ResponseField name="subtotal" type="number" required>
+  Order subtotal before IGV and delivery.
+</ResponseField>
+
+<ResponseField name="igv" type="number" required>
+  18% VAT (IGV) calculated as `subtotal * 0.18`.
+</ResponseField>
+
+<ResponseField name="total" type="number" required>
+  Final total copied from the order.
+</ResponseField>
+
+<ResponseField name="paymentMethod" type="string" required>
+  Payment method copied from the order.
+</ResponseField>
+
+<ResponseField name="deliveryAddress" type="string">
+  Delivery address copied from the order.
+</ResponseField>
+
+<ResponseField name="businessName" type="string" required>
+  Business name from settings at the time of generation.
+</ResponseField>
+
+<ResponseField name="businessRUC" type="string">
+  Business RUC from settings at the time of generation.
+</ResponseField>
+
+<ResponseField name="businessAddress" type="string">
+  Business address from settings at the time of generation.
+</ResponseField>
+
+---
+
+## Activity log
+
+**localStorage key:** `kiosco_activity_log` (array, newest first, max 500 entries)
+
+Every significant admin action — creating an order, updating a status, deleting an order — appends an entry. When the log reaches 500 entries the oldest entry is removed automatically.
+
+```json
+{
+  "id": 1700000000002,
+  "action": "Nuevo pedido",
+  "description": "Pedido #1 creado",
+  "type": "order",
+  "date": "2024-01-15T10:30:00.000Z"
+}
+```
+
+<ResponseField name="id" type="number" required>
+  Unix timestamp in milliseconds assigned at log time.
+</ResponseField>
+
+<ResponseField name="action" type="string" required>
+  Short action label, e.g. `"Nuevo pedido"`, `"Estado actualizado"`, `"Pedido eliminado"`.
+</ResponseField>
+
+<ResponseField name="description" type="string" required>
+  Human-readable sentence describing the action.
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+  Category tag. Defaults to `"general"`. Common values: `"order"`.
+</ResponseField>
+
+<ResponseField name="date" type="string" required>
+  ISO 8601 timestamp of the logged event.
+</ResponseField>
+
+---
+
+## Customer notifications
+
+**localStorage key:** `kiosco_customer_notifications`
+
+An object keyed by customer phone number. Each value is an array of notification objects, newest first. Notifications are written both when an order status changes (`notifyCustomerStatusChange`) and when a scheduled delivery reminder fires (`notifyCustomerDeliveryReminder`).
+
+```json
+{
+  "987654321": [
+    {
+      "id": 1700000000003,
+      "orderNumber": 1,
+      "status": "confirmado",
+      "message": "✅ Tu pedido ha sido confirmado y está siendo preparado",
+      "read": false,
+      "date": "2024-01-15T10:35:00.000Z"
+    }
+  ]
+}
+```
+
+<ResponseField name="[phone]" type="object[]">
+  Array of notifications for the customer with this phone number.
+  <Expandable title="notification fields">
+    <ResponseField name="id" type="number" required>
+      Unix timestamp in milliseconds.
+    </ResponseField>
+    <ResponseField name="orderNumber" type="number" required>
+      Display order number the notification relates to.
+    </ResponseField>
+    <ResponseField name="status" type="string" required>
+      The order status that triggered the notification, or `"recordatorio"` for delivery reminders.
+    </ResponseField>
+    <ResponseField name="message" type="string" required>
+      Human-readable notification text shown to the customer.
+    </ResponseField>
+    <ResponseField name="read" type="boolean" required>
+      Whether the customer has read the notification. Set to `true` by `markNotificationAsRead()`.
+    </ResponseField>
+    <ResponseField name="date" type="string" required>
+      ISO 8601 timestamp when the notification was created.
+    </ResponseField>
+  </Expandable>
+</ResponseField>

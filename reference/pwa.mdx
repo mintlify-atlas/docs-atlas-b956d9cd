@@ -1,0 +1,154 @@
+---
+title: "Install Kiosco as a Progressive Web App (PWA)"
+description: "Install Kiosco on Android, iOS, or desktop as a PWA for offline access and push notifications. Requires HTTPS and a valid manifest.json and sw.js."
+---
+
+Kiosco ships with full Progressive Web App support. Customers and admins can install it to their device's home screen, use it offline after the first visit, and receive push notifications when an order status changes — all without downloading anything from an app store.
+
+---
+
+## PWA features at a glance
+
+<CardGroup cols={3}>
+  <Card title="Installable" icon="download">
+    Add Kiosco to any home screen or desktop via the browser's built-in install prompt. The app opens in a standalone window without browser chrome.
+  </Card>
+  <Card title="Offline access" icon="wifi-off">
+    The service worker caches the app shell after the first load. Customers can browse the catalog and view their orders without a network connection.
+  </Card>
+  <Card title="Push notifications" icon="bell">
+    The browser Notification API fires a notification on the customer's device whenever the admin updates an order status.
+  </Card>
+</CardGroup>
+
+---
+
+## How it works
+
+### Manifest
+
+`index.html` links to `manifest.json` in the `<head>`:
+
+```html
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6366f1">
+<link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
+```
+
+The manifest tells the browser the app's name, icons, and display mode. It must exist at the root of your deployment and must reference valid icon paths.
+
+### Service worker
+
+The service worker is registered from `index.html` after the page loads:
+
+```javascript
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('Service Worker registrado:', reg))
+            .catch(err => console.log('Error al registrar SW:', err));
+    });
+}
+```
+
+`sw.js` must exist at the root of your deployment (i.e. served at `/sw.js`). The service worker handles caching of the app shell, enabling offline use after the first visit.
+
+<Warning>
+  The service worker requires an HTTP or HTTPS context. It will not register when the site is opened from a `file://` URL. Always deploy to a proper web server or use a local HTTP server during development.
+</Warning>
+
+### Push notifications
+
+Five seconds after page load, Kiosco asks the customer for notification permission:
+
+```javascript
+if ('Notification' in window
+    && Notification.permission !== 'granted'
+    && Notification.permission !== 'denied') {
+    setTimeout(() => {
+        Notification.requestPermission();
+    }, 5000);
+}
+```
+
+Once permission is granted, every call to `notifyCustomerStatusChange()` in `database.js` fires a native browser `Notification`:
+
+```javascript
+if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    new Notification('🛒 Actualización de tu pedido', {
+        body: statusMessages[status],
+        icon: '/assets/icons/icon-192x192.png'
+    });
+}
+```
+
+Notifications are triggered automatically when the admin changes an order's status from the admin panel.
+
+---
+
+## Installing Kiosco on your device
+
+<Tabs>
+  <Tab title="Android (Chrome)">
+    <Steps>
+      <Step title="Open Kiosco in Chrome">
+        Navigate to your deployed Kiosco URL in Chrome for Android.
+      </Step>
+      <Step title="Open the browser menu">
+        Tap the three-dot menu in the top-right corner.
+      </Step>
+      <Step title="Tap Add to Home screen">
+        Select **Add to Home screen** and confirm the name. The app icon will appear on your home screen.
+      </Step>
+    </Steps>
+
+    On subsequent visits from the home screen, Kiosco opens in a standalone window without the address bar.
+  </Tab>
+  <Tab title="iOS (Safari)">
+    <Steps>
+      <Step title="Open Kiosco in Safari">
+        Navigate to your deployed Kiosco URL. Chrome and Firefox on iOS do not support PWA installation — you must use Safari.
+      </Step>
+      <Step title="Tap the Share button">
+        Tap the Share icon at the bottom of the screen (the square with an arrow pointing up).
+      </Step>
+      <Step title="Tap Add to Home Screen">
+        Scroll down in the Share sheet and tap **Add to Home Screen**. Confirm the name and tap **Add**.
+      </Step>
+    </Steps>
+
+    <Note>
+      iOS Safari does not support the Web Push API in all versions. Push notifications may not fire on iOS depending on the OS version. iOS 16.4 and later support Web Push for installed PWAs.
+    </Note>
+  </Tab>
+  <Tab title="Desktop (Chrome / Edge)">
+    <Steps>
+      <Step title="Open Kiosco in Chrome or Edge">
+        Navigate to your deployed Kiosco URL.
+      </Step>
+      <Step title="Click the install icon">
+        Look for an install icon in the browser's address bar — a monitor with a download arrow in Chrome, or a similar icon in Edge. Click it.
+      </Step>
+      <Step title="Confirm installation">
+        Click **Install** in the prompt that appears. Kiosco will open as a standalone app and a shortcut will be added to your desktop or Start menu.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+---
+
+## Deployment requirements
+
+For PWA features to work correctly, your deployment must satisfy these conditions:
+
+| Requirement | Notes |
+|---|---|
+| HTTPS (or localhost) | Service workers and push notifications require a secure context. All major hosting platforms (GitHub Pages, Netlify, Vercel) provide HTTPS automatically. |
+| `sw.js` at root | The service worker must be served at `/sw.js` relative to the site root. |
+| `manifest.json` at root | The manifest must be served at `/manifest.json`. |
+| Icons at `assets/icons/icon-192x192.png` | Required for the home screen icon and notification icon. |
+
+<Tip>
+  You can verify that your PWA is configured correctly using Chrome DevTools: open **Application → Manifest** and **Application → Service Workers** to inspect the registration status and any errors.
+</Tip>

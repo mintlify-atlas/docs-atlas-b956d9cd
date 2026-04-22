@@ -1,0 +1,146 @@
+---
+title: "Set up payment methods for your Kiosco store"
+description: "Configure which payment methods Kiosco shows at checkout — Yape, Plin, bank transfer, and cash on delivery — and customize their checkout instructions."
+---
+
+Kiosco supports four payment methods out of the box: Yape, Plin, bank transfer, and cash on delivery. Each method has a display name, an icon, and a set of instructions that customers see at checkout after selecting it. You manage the active list from the **Configuración** tab of the admin panel.
+
+## Default payment methods
+
+The four built-in methods are enabled by default. Their keys, names, icons, and checkout instructions are:
+
+<AccordionGroup>
+  <Accordion title="Yape (yape)">
+    **Display name:** Yape
+
+    **Icon:** 📱
+
+    **Customer instructions:** Escanea el código QR o transfiere al número +51 914 491 874
+
+    Yape is a Peruvian mobile payment app. Customers pay by scanning a QR code or transferring directly to your registered phone number.
+  </Accordion>
+  <Accordion title="Plin (plin)">
+    **Display name:** Plin
+
+    **Icon:** 📱
+
+    **Customer instructions:** Transfiere al número +51 914 491 874
+
+    Plin is an interbank mobile transfer service. Customers pay by sending a transfer to your phone number.
+  </Accordion>
+  <Accordion title="Transferencia bancaria (transferencia)">
+    **Display name:** Transferencia bancaria
+
+    **Icon:** 🏦
+
+    **Customer instructions:** BCP - Cuenta: 123-456-789 / Interbancario: 12345678901234567890
+
+    Bank transfer allows customers to pay via standard wire transfer. Update the account number in the instructions to match your real account before going live.
+  </Accordion>
+  <Accordion title="Pago contra entrega (efectivo)">
+    **Display name:** Pago contra entrega
+
+    **Icon:** 💵
+
+    **Customer instructions:** Paga en efectivo al momento de recibir tu pedido
+
+    Cash on delivery does not require advance payment. Orders placed with this method are automatically marked as `paymentConfirmed = true` so you do not need to manually confirm payment receipt.
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+  The `efectivo` (cash) method is the only one that automatically sets `paymentConfirmed = true` on the order at creation time. All other methods require you to manually confirm payment in the admin panel after verifying the transfer.
+</Note>
+
+## How methods appear at checkout
+
+At checkout, customers see a button for each active payment method. Selecting a method reveals the corresponding instructions beneath the button. The method key (e.g., `yape`) is stored on the order record as `paymentMethod` and displayed in the admin dashboard and on invoices.
+
+## Managing payment methods
+
+### Removing a method
+
+<Steps>
+  <Step title="Open settings">
+    In the admin panel, click the **Configuración** tab.
+  </Step>
+  <Step title="Find the payment methods list">
+    Scroll to the **Métodos de pago** section. The active methods are listed with a **Eliminar** button next to each one.
+  </Step>
+  <Step title="Remove the method">
+    Click **Eliminar** next to the method you want to disable. The change is saved immediately — that method will no longer appear at checkout.
+  </Step>
+</Steps>
+
+### Adding a method
+
+<Steps>
+  <Step title="Open settings">
+    In the admin panel, click the **Configuración** tab.
+  </Step>
+  <Step title="Click Agregar método">
+    Click the **Agregar método** button below the payment methods list.
+  </Step>
+  <Step title="Enter the method name">
+    A prompt asks for the method name. Enter a descriptive name (e.g., `Tarjeta de crédito`). The value is stored in lowercase with spaces replaced by underscores (e.g., `tarjeta_de_crédito`).
+  </Step>
+</Steps>
+
+<Warning>
+  Custom payment methods added through the prompt will appear in the checkout list but do not have pre-configured icons or instructions. The checkout screen will show an empty instructions block for any method not found in the built-in `getPaymentMethodDetails()` map in `database.js`. To add proper instructions, you need to extend that function in the source code.
+</Warning>
+
+## Customizing instructions
+
+The instructions text for the four built-in methods is defined in the `getPaymentMethodDetails()` function in `database.js`. To change the instructions — for example, to update your phone number or bank account — edit that function directly:
+
+```javascript database.js
+function getPaymentMethodDetails(method) {
+    const details = {
+        'yape': {
+            name: 'Yape',
+            icon: '📱',
+            instructions: 'Escanea el código QR o transfiere al número +51 914 491 874'
+        },
+        'plin': {
+            name: 'Plin',
+            icon: '📱',
+            instructions: 'Transfiere al número +51 914 491 874'
+        },
+        'transferencia': {
+            name: 'Transferencia bancaria',
+            icon: '🏦',
+            instructions: 'BCP - Cuenta: 123-456-789 / Interbancario: 12345678901234567890'
+        },
+        'efectivo': {
+            name: 'Pago contra entrega',
+            icon: '💵',
+            instructions: 'Paga en efectivo al momento de recibir tu pedido'
+        }
+    };
+    return details[method] || { name: method, icon: '💳', instructions: '' };
+}
+```
+
+## Storage
+
+The active list of payment method keys is stored as an array inside `kiosco_settings`:
+
+```json kiosco_settings (excerpt)
+{
+  "paymentMethods": ["yape", "plin", "transferencia", "efectivo"]
+}
+```
+
+Changes are written by `saveSettings()` and dispatched as a `settingsUpdated` event on `window`.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Business settings" icon="settings" href="/setup/configuration">
+    Update your phone number and business details referenced in payment instructions.
+  </Card>
+  <Card title="Invoicing" icon="file-text" href="/features/invoicing">
+    See how the selected payment method appears on generated invoices.
+  </Card>
+</CardGroup>

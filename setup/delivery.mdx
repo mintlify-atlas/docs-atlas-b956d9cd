@@ -1,0 +1,136 @@
+---
+title: "Configure delivery options and time windows"
+description: "Set delivery fees, free-delivery thresholds, and scheduled time-window slots in Kiosco. Includes map-based address capture and automated reminders."
+---
+
+Kiosco supports two delivery modes: immediate delivery ("Traer ahora") and scheduled delivery ("Programar"). Customers choose their preferred mode at checkout, optionally pin their location on a map, and select a time window if scheduling. You control the cost settings and available time slots from the **Configuración** tab of the admin panel.
+
+## Delivery cost settings
+
+Delivery fees are configured in the **Configuración** tab alongside your other business settings.
+
+<ParamField path="deliveryCost" type="number" default="3.0">
+  The flat delivery fee in Soles (S/) charged on every order. Displayed at checkout and added to the order total. Set to `0` to offer free delivery on all orders.
+</ParamField>
+
+<ParamField path="freeDeliveryMin" type="number" default="20">
+  The minimum cart subtotal (S/) required to waive the delivery fee. When a customer's cart reaches this amount, delivery is automatically free. Set to a very high value (e.g., `9999`) to effectively disable free delivery.
+</ParamField>
+
+<Note>
+  These settings are stored in `kiosco_settings` under the `deliveryCost` and `freeDeliveryMin` keys. See [Business settings](/setup/configuration) for full details on how settings are persisted.
+</Note>
+
+## Delivery time windows
+
+Time windows are the scheduled slots customers can choose when they select "Programar" at checkout. The default windows are:
+
+```json Default delivery windows
+["10:00-12:00", "12:00-14:00", "14:00-16:00", "16:00-18:00", "18:00-20:00"]
+```
+
+### Adding a time window
+
+<Steps>
+  <Step title="Open settings">
+    In the admin panel, click the **Configuración** tab.
+  </Step>
+  <Step title="Find the delivery windows section">
+    Scroll to the **Ventanas de entrega** section. Active windows are listed with a **Eliminar** button next to each.
+  </Step>
+  <Step title="Click Agregar ventana">
+    Click the **Agregar ventana** button. A prompt asks for the window in `HH:MM-HH:MM` format (e.g., `08:00-10:00`).
+  </Step>
+  <Step title="Confirm">
+    Enter the window and confirm. It appears in the list immediately and is available to customers at checkout.
+  </Step>
+</Steps>
+
+### Removing a time window
+
+Click **Eliminar** next to any window. The change is saved immediately and that slot is removed from the checkout scheduling options.
+
+<Warning>
+  Removing a time window does not affect orders already scheduled for that window. Those orders retain their `deliveryWindow` value and continue to trigger reminders normally.
+</Warning>
+
+## Immediate vs. scheduled delivery
+
+At checkout, customers choose between two delivery modes:
+
+<CardGroup cols={2}>
+  <Card title="Traer ahora" icon="zap">
+    The order is dispatched as soon as possible. No time window is attached to the order. The admin panel shows these orders without a scheduled delivery time.
+  </Card>
+  <Card title="Programar" icon="calendar">
+    The customer selects a date and a time window from the configured list. The order is stored with `deliveryWindow` and `deliveryDate` fields and its status is set to `programado`.
+  </Card>
+</CardGroup>
+
+When an order is scheduled, `scheduleDelivery(orderId, deliveryWindow, deliveryDate)` in `database.js` updates the order record and marks `scheduledNotification: false` so the reminder system can track it.
+
+## Automated delivery reminders
+
+Kiosco automatically notifies customers before their scheduled delivery. A check runs every 60 seconds via `setInterval(checkDeliveryReminders, 60000)` in `database.js`.
+
+The reminder logic:
+
+<Steps>
+  <Step title="1-hour reminder">
+    When the scheduled delivery time is 60 minutes or less away and the 1-hour reminder has not yet been sent, Kiosco writes a notification to `kiosco_customer_notifications` with the message:
+
+    > "Recordatorio: Tu pedido #[N] está programado para la ventana [window]. ¡Prepárate!"
+  </Step>
+  <Step title="30-minute reminder">
+    When the scheduled delivery time is 30 minutes or less away and the 30-minute reminder has not yet been sent, Kiosco writes a second, urgent notification:
+
+    > "¡Tu pedido #[N] llegará en 30 minutos! Ventana: [window]"
+
+    After this notification is sent, `scheduledNotification` is set to `true` on the order so no further reminders are triggered.
+  </Step>
+</Steps>
+
+<Info>
+  Notifications are stored in `kiosco_customer_notifications` in `localStorage` and displayed in the customer's order tracking view. If the browser supports the Notifications API and permission has been granted, a native push notification is also shown.
+</Info>
+
+## Map integration at checkout
+
+When a customer places an order, a Leaflet.js map appears at checkout for address selection. The customer types their street address and drops a pin to confirm the exact delivery location. The selected coordinates and address string are stored on the order record as `deliveryAddress`.
+
+The map requires no server-side configuration — it loads tiles directly from OpenStreetMap and uses the browser's Geolocation API to center on the customer's current position.
+
+<Tip>
+  Encourage customers to drop the pin precisely rather than relying solely on the typed address. The pinned coordinates give your delivery driver an accurate location even when street addresses are ambiguous.
+</Tip>
+
+## Storage
+
+Delivery windows are stored as an array inside `kiosco_settings`:
+
+```json kiosco_settings (excerpt)
+{
+  "deliveryCost": 3.0,
+  "freeDeliveryMin": 20,
+  "deliveryWindows": [
+    "10:00-12:00",
+    "12:00-14:00",
+    "14:00-16:00",
+    "16:00-18:00",
+    "18:00-20:00"
+  ]
+}
+```
+
+Window changes are written by `saveDeliveryWindows()`, which delegates to `saveSettings()` and dispatches a `settingsUpdated` event.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Business settings" icon="settings" href="/setup/configuration">
+    Edit delivery cost and free delivery threshold.
+  </Card>
+  <Card title="Order management" icon="package" href="/features/order-management">
+    Manage scheduled orders and update delivery status.
+  </Card>
+</CardGroup>

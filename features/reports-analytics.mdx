@@ -1,0 +1,165 @@
+---
+title: "Sales reports, charts, and analytics in Kiosco"
+description: "The Kiosco Reportes tab shows revenue line charts, peak-hour bar charts, top customers by spend, and most profitable products ranked by margin."
+---
+
+The **Reportes** tab gives you a visual and ranked view of how your store is performing. Three Chart.js charts cover revenue over time, best-selling products, and hourly order distribution. Below the charts, two ranked lists highlight your highest-spending customers and your most profitable products.
+
+## Revenue chart
+
+The revenue chart is a line chart that plots total daily or monthly income over a selected period. Three filter buttons control the time window:
+
+| Button | Data source | X-axis labels |
+|---|---|---|
+| **7 días** | `getDailySales(7)` | Short weekday + day number (e.g., "lun. 14") |
+| **30 días** | `getDailySales(30)` | Day/month (e.g., "14/4") |
+| **12 meses** | `getSalesByMonth(12)` | Abbreviated month name (e.g., "abr.") |
+
+The chart line color uses the `--primary` CSS custom property, so it reflects any brand color you have set in the Personalizar tab.
+
+### `getDailySales(days)`
+
+Returns an array of `{ date, total, count }` objects — one entry per calendar day, counting backward from today.
+
+- `date` — ISO date string (`YYYY-MM-DD`)
+- `total` — Sum of `order.total` for all orders on that date
+- `count` — Number of orders on that date
+
+Days with no orders appear in the array with `total: 0` and `count: 0`, so the chart always shows a continuous line.
+
+### `getSalesByMonth(months)`
+
+Returns an array of `{ month, total, count }` objects — one entry per calendar month, counting backward from the current month.
+
+- `month` — Year-month string (`YYYY-MM`)
+- `total` — Sum of all order totals in that month
+- `count` — Number of orders in that month
+
+## Top products chart
+
+A bar chart that renders the five most profitable products side by side, with two datasets per product:
+
+- **Cantidad vendida** — Units sold (integer, shown as "X unidades" in the tooltip)
+- **Ganancia (S/)** — Total profit in soles (shown as "S/ X.XX" in the tooltip)
+
+The chart calls `getMostProfitableProducts(5)` to get its data. Products are sorted by profit descending, so the leftmost bar always represents the product that generated the highest margin.
+
+## Peak hours chart
+
+A bar chart with one bar per hour of the day (0:00 through 23:00). Each bar height shows the number of orders placed during that hour across all recorded orders.
+
+The chart calls `getPeakHours()`, which iterates every stored order and groups them by the hour component of `order.date`.
+
+### `getPeakHours()`
+
+Returns an object with 24 keys (integers 0–23). Each key maps to `{ count, revenue }`:
+
+- `count` — Number of orders placed during that hour
+- `revenue` — Sum of `order.total` for all orders during that hour
+
+Hours with no orders have `count: 0` and `revenue: 0`. The chart plots only `count` on the y-axis.
+
+<Tip>
+  Use the peak hours chart to decide your operating hours and delivery windows. Hours with consistently high counts are your busiest periods.
+</Tip>
+
+## Top customers list
+
+Below the charts, a ranked list shows the five customers who have spent the most across all their orders.
+
+Each row displays:
+- Rank position
+- Customer name (falls back to "Cliente" when no name is recorded)
+- Phone number
+- Total amount spent (`S/ X.XX`)
+- Number of orders placed
+
+### `getTopCustomers(limit)`
+
+Aggregates all orders by `customerPhone`, summing `order.total` and counting order frequency. Returns an array of up to `limit` customer objects sorted by `totalSpent` descending.
+
+Each object contains:
+
+```javascript
+{
+  phone: string,
+  name: string,
+  totalSpent: number,
+  orderCount: number
+}
+```
+
+Customers with no phone number on their order are excluded from this list.
+
+## Most profitable products list
+
+The second ranked list shows the five products that generated the most profit. Each row displays:
+
+- Rank position
+- Product name
+- Total profit in soles (`S/ X.XX`) and profit margin percentage
+- Units sold and gross revenue
+
+### `getMostProfitableProducts(limit)`
+
+Iterates every order and every line item. For each item it looks up the product's `cost` from the current product catalog. If no cost is stored, it falls back to 60% of the sale price (`item.price * 0.6`).
+
+Profit is calculated as:
+
+```
+profit = revenue - (cost × quantity)
+         where revenue = item.price × item.quantity
+```
+
+Returns an array of up to `limit` product objects sorted by `profit` descending:
+
+```javascript
+{
+  name: string,
+  quantity: number,   // total units sold
+  revenue: number,    // gross revenue
+  cost: number,       // total cost of goods sold
+  profit: number      // revenue - cost
+}
+```
+
+<Note>
+  Profit figures are only as accurate as the cost values you enter for each product. Set costs under the **Productos** sub-tab in the Dashboard to get reliable margin data.
+</Note>
+
+## Activity log (Actividad tab)
+
+The **Actividad** tab shows a timestamped record of every admin action. Each entry includes:
+
+- **Action** — A short label such as "Producto agregado" or "Estado actualizado"
+- **Description** — A sentence with specific details (e.g., product name, order number, new status)
+- **Timestamp** — Formatted to Peru's locale
+
+Actions are color-coded by type:
+
+| Type | Color | Examples |
+|---|---|---|
+| `order` | Green | Order created, status changed, order deleted |
+| `product` | Indigo | Product added, stock updated, cost updated, product deleted |
+| `category` | Amber | Category added, category deleted |
+| `auth` | Red | Admin login, admin logout |
+| `general` | Gray | Theme updated, logo uploaded, settings saved |
+
+The log stores up to 500 entries. Once the limit is reached, the oldest entry is dropped each time a new one is added. Click **Limpiar** to clear the entire log — a confirmation dialog appears before any entries are deleted.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Admin dashboard" icon="layout-dashboard" href="/features/admin-dashboard">
+    Overview of all dashboard tabs and order management
+  </Card>
+  <Card title="Customize store branding" icon="palette" href="/features/customization">
+    Brand colors that affect chart line and accent colors
+  </Card>
+  <Card title="Products and categories setup" icon="box" href="/setup/products-categories">
+    Set product costs to improve profit accuracy
+  </Card>
+  <Card title="LocalStorage API reference" icon="database" href="/reference/localstorage-api">
+    Keys and data shapes used by the analytics functions
+  </Card>
+</CardGroup>

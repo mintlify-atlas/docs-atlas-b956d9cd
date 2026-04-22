@@ -1,80 +1,163 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Kiosco quickstart: set up your store in 10 minutes"
+description: "Set up your Kiosco virtual store, add products, and receive your first order in under 10 minutes — no server or installation required."
 ---
 
-## Get started in three steps
+Kiosco runs entirely in the browser with no build step, no backend, and no accounts to create. This guide walks you through opening the store, logging in to the admin panel, adding your first products, and placing a test order as a customer.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+You only need a modern web browser. Kiosco has been tested in Chrome, Firefox, Edge, and Safari. No Node.js, no server, and no internet connection are required to run the app locally.
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+<Note>
+  To let customers access your store from their own devices, you need to deploy the files to a public URL. See [Deployment](/reference/deployment) for free static hosting options.
+</Note>
 
-### Step 2: Deploy your changes
+## Set up the store
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+<Steps>
+  <Step title="Open the store in your browser">
+    <Tabs>
+      <Tab title="Run locally">
+        Open the `index.html` file directly in your browser. You can do this by double-clicking the file in your file manager or dragging it into a browser window.
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+        ```
+        file:///path/to/kiosco/index.html
+        ```
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+        The store loads immediately. Kiosco initializes `localStorage` with a default product catalog on first load.
+      </Tab>
+      <Tab title="Deploy to static hosting">
+        Upload all files to a static hosting provider. No build step is required — just upload the directory as-is.
 
-### Step 3: Go live
+        Popular options:
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+        - **GitHub Pages** — Push to a public repository and enable Pages in the repository settings
+        - **Netlify** — Drag and drop the project folder onto [netlify.com/drop](https://netlify.com/drop)
+        - **Vercel** — Import the repository or run `vercel` in the project directory
+
+        Once deployed, share the public URL with your customers.
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Log in to the admin panel">
+    <Tabs>
+      <Tab title="As admin">
+        From the customer store (`index.html`), click the **Admin** button in the top-right corner. This opens the admin panel at `admin.html`.
+
+        On the login screen, enter the admin phone number and click **Ingresar**.
+
+        <Note>
+          The default admin phone number is `+51914491874`. It is stored in `localStorage` under the key `kiosco_admin_phone` and is set automatically on first load. You can change it in the browser console or through the Settings panel after logging in.
+        </Note>
+
+        Enter the number exactly as stored — with or without the `+51` prefix and spaces are ignored. For example, `51914491874`, `+51914491874`, and `+51 914 491 874` all work.
+      </Tab>
+      <Tab title="As customer">
+        Customers never log in. They browse `index.html` directly and place orders using their name and phone number. To track past orders, they visit `client-orders.html` and enter their phone number.
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Create your first category">
+    In the admin panel, you are on the **Dashboard** tab by default. The Dashboard tab has two sub-tabs: **Productos** and **Categorías**.
+
+    1. Click the **Categorías** sub-tab.
+    2. Type a category name in the input field. You can include an emoji prefix (for example, `🥤 Bebidas`).
+    3. Click **Agregar**.
+
+    The new category appears in the list below and becomes available in the product form.
+
+    <Tip>
+      Kiosco initializes with three default categories: `🥤 Bebidas`, `🍿 Snacks`, and `🍫 Dulces`. You can delete these and add your own once you have logged in.
+    </Tip>
+  </Step>
+
+  <Step title="Add your first product">
+    1. Click the **Productos** sub-tab in the Dashboard.
+    2. Fill in the product form:
+
+    | Field | Description |
+    |-------|-------------|
+    | **Category** | Select from your existing categories |
+    | **Name** | Product display name shown to customers |
+    | **Price (S/)** | Selling price in Peruvian sol |
+    | **Stock** | Number of units available |
+    | **Cost (S/)** | Your cost per unit, used for profit calculations in analytics |
+
+    3. Click **Agregar**.
+
+    The product appears in the list below the form and is immediately visible on the customer storefront.
+
+    <Tip>
+      Add a cost for each product. The Reports tab uses cost vs. price to calculate profit margins and surface your most profitable items.
+    </Tip>
+  </Step>
+</Steps>
+
+## Place your first order
+
+<Steps>
+  <Step title="Browse the storefront as a customer">
+    Open `index.html` in your browser (or open it in a new tab if you have the admin panel open in another).
+
+    You will see your categories in the sidebar and your products in the grid. Click a category to filter, or use the search bar and price filters at the top.
+  </Step>
+
+  <Step title="Add products to the cart">
+    Click the **+** button on any product card to add it to your cart. The floating cart button in the bottom-right corner shows the current item count.
+
+    Click the cart button to open the cart panel. You can adjust quantities or remove items before checking out.
+  </Step>
+
+  <Step title="Check out">
+    In the cart panel, click **Continuar**. You will be prompted to enter:
+
+    - Your **name** and **phone number** (used for order tracking and notifications)
+    - Your **delivery address** (you can pin a location on the map)
+    - A **delivery option**: bring now or schedule for a specific time window
+    - Your **payment method**: Yape, Plin, bank transfer, or cash on delivery
+
+    Submit the form to place the order. A confirmation toast appears and the order is saved to `localStorage`.
+  </Step>
+
+  <Step title="Confirm the order in the admin panel">
+    <Tabs>
+      <Tab title="As admin">
+        Switch to the admin panel (`admin.html`). Under the **Dashboard** tab, scroll down to the **Ventas en Tiempo Real** section. Your new order appears at the top of the list with a **Pendiente** badge.
+
+        Click the order to expand it. Use the status dropdown or action buttons to move the order through the workflow:
+
+        1. **Confirmado** — you have accepted the order
+        2. **Preparando** — you are preparing it
+        3. **En camino** — the order is out for delivery
+        4. **Entregado** — the order has been delivered
+
+        Each status change is logged in the Activity tab and sends an in-browser notification to the customer's phone number if they have notifications enabled.
+      </Tab>
+      <Tab title="As customer">
+        After placing an order, the customer can check its status at any time by visiting `client-orders.html` and entering their phone number. The page shows all past orders and their current status, updated in real time from `localStorage`.
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
+Now that your store is running and you have placed a test order, explore the rest of the setup guides:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Configure your store" icon="gear" href="/setup/configuration">
+    Set your business name, RUC, delivery cost, operating hours, and free-delivery minimum.
+  </Card>
+  <Card title="Products & categories" icon="box" href="/setup/products-categories">
+    Manage your full product catalog, add images, and organize categories.
+  </Card>
+  <Card title="Payment methods" icon="credit-card" href="/setup/payment-methods">
+    Enable or disable Yape, Plin, bank transfer, and cash on delivery for your store.
+  </Card>
+  <Card title="Deployment" icon="cloud" href="/reference/deployment">
+    Host Kiosco on GitHub Pages, Netlify, or Vercel so customers can access it from their devices.
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

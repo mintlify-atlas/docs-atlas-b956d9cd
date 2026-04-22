@@ -1,0 +1,119 @@
+---
+title: "Customize your Kiosco store branding and colors"
+description: "Set your brand colors and upload your logo in the Kiosco Personalizar tab. Color changes apply instantly via CSS custom properties on the root element."
+---
+
+The **Personalizar** tab lets you replace Kiosco's default indigo-and-green palette with your own brand colors and add your business logo. Changes take effect immediately across the page without a reload, using CSS custom properties on the `:root` element.
+
+## Accessing the Personalizar tab
+
+Log in to the admin panel, then click the **Personalizar** tab in the top navigation bar. You will see color pickers for four brand colors and a file input for your logo.
+
+## Changing brand colors
+
+Kiosco exposes four color controls, each paired with a small preview swatch that updates as you move the color picker:
+
+| Field | CSS variable set | Where it appears |
+|---|---|---|
+| **Color principal** | `--primary`, `--primary-dark`, `--primary-light` | Buttons, links, active states, revenue chart line, focus rings |
+| **Color secundario** | `--success` | Positive action buttons, delivery confirmation badges, confirmed-order indicators |
+| **Color de peligro** | `--danger` | Delete buttons, rejected-order badges, error toasts |
+| **Color de advertencia** | `--warning` | Pending-order badges, peak-hours chart bars, warning indicators |
+
+<Note>
+  `--primary-dark` is set to the same hex value as `--primary`. `--primary-light` appends `cc` to the hex string, producing a roughly 80%-opacity variant. The `darkColor` (`--dark`) is fixed at `#1e293b` and is not exposed in the UI.
+</Note>
+
+After adjusting the pickers, click **Guardar cambios** to persist your selections.
+
+### How colors are saved
+
+`saveTheme()` serializes the four color values as JSON and writes them to `localStorage` under the key `kiosco_theme`:
+
+```json
+{
+  "primaryColor": "#6366f1",
+  "secondaryColor": "#10b981",
+  "dangerColor": "#ef4444",
+  "warningColor": "#f59e0b",
+  "darkColor": "#1e293b"
+}
+```
+
+It then immediately calls `applyThemeToPage()` and dispatches a `themeUpdated` event so any open admin listeners can refresh.
+
+### How colors apply instantly
+
+`applyThemeToPage(theme)` writes directly to the document root's inline styles:
+
+```javascript
+const root = document.documentElement;
+root.style.setProperty('--primary', theme.primaryColor);
+root.style.setProperty('--primary-dark', theme.primaryColor);
+root.style.setProperty('--primary-light', theme.primaryColor + 'cc');
+root.style.setProperty('--success', theme.secondaryColor);
+root.style.setProperty('--danger', theme.dangerColor);
+root.style.setProperty('--warning', theme.warningColor);
+root.style.setProperty('--dark', theme.darkColor);
+```
+
+Because the rest of the CSS uses `var(--primary)` throughout, every element that references these variables re-renders with the new color immediately.
+
+On page load, `loadThemeSettings()` reads the stored theme and calls `applyThemeToPage()`, so your colors are always restored between sessions.
+
+## Uploading your logo
+
+<Steps>
+  <Step title="Choose an image file">
+    Click the file input in the **Logo del negocio** section and select an image from your device. Any browser-supported image format works (JPEG, PNG, WebP, SVG).
+  </Step>
+  <Step title="Click Subir logo">
+    Click **Subir logo**. The image is read as a base64 data URL and saved to `localStorage` under the key `kiosco_logo`.
+  </Step>
+  <Step title="Confirm the preview">
+    A preview of your logo appears below the upload controls (max 150 × 80 px display size). The logo also appears in the admin header alongside the store name.
+  </Step>
+</Steps>
+
+Once a logo is saved, `saveLogo(logoData)` dispatches a `logoUpdated` event so other parts of the page can react (for example, showing the logo in the header `<img>` element).
+
+## Removing your logo
+
+Click **Eliminar logo**. This calls `deleteLogo()`, which removes the `kiosco_logo` key from `localStorage` and dispatches `logoUpdated`. The header logo image hides immediately and the preview area clears.
+
+## Theme persistence and scope
+
+<Warning>
+  Theme data is stored in `localStorage`, which is scoped to the browser and device. If your customers use a different device or browser than the one you used to configure colors, they will see the default Kiosco palette. To ensure customers see your branding, configure colors on the same device — or the same browser profile — that serves the store.
+</Warning>
+
+On every page load, both `admin.html` and `index.html` call `applyThemeToPage()` with the stored theme, so colors are consistent across the admin and storefront as long as the same browser is used.
+
+## Default color values
+
+If no theme has been saved yet, Kiosco uses these defaults:
+
+| Color | Default hex |
+|---|---|
+| Primary | `#6366f1` (indigo) |
+| Secondary / success | `#10b981` (emerald) |
+| Danger | `#ef4444` (red) |
+| Warning | `#f59e0b` (amber) |
+| Dark | `#1e293b` (slate) |
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Admin dashboard" icon="layout-dashboard" href="/features/admin-dashboard">
+    Overview of all admin panel tabs
+  </Card>
+  <Card title="LocalStorage API reference" icon="database" href="/reference/localstorage-api">
+    All localStorage keys including kiosco_theme and kiosco_logo
+  </Card>
+  <Card title="Sales reports and analytics" icon="chart-line" href="/features/reports-analytics">
+    Charts that use the primary color for their line and accent
+  </Card>
+  <Card title="Storefront" icon="store" href="/features/storefront">
+    Where brand colors appear to customers
+  </Card>
+</CardGroup>

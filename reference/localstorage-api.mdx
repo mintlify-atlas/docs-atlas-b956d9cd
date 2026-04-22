@@ -1,0 +1,547 @@
+---
+title: "Kiosco localStorage API function reference"
+description: "Complete reference for all database.js functions — products, orders, settings, theme, analytics, notifications, invoices, and delivery scheduling."
+---
+
+`database.js` is Kiosco's entire data layer. It provides a set of plain JavaScript functions that read and write `localStorage`, dispatch browser events to notify the UI of changes, and handle side effects such as invoice generation and push notifications. This page documents every public function grouped by domain.
+
+<Note>
+  `database.js` is loaded before any other script on every page. It calls `initDB()` and `setInterval(checkDeliveryReminders, 60000)` immediately at module level, so all keys are initialized and delivery reminders are active as soon as the page loads.
+</Note>
+
+---
+
+## Initialization
+
+### `initDB()`
+
+Seeds all localStorage keys with default values if they have not been set before. Safe to call multiple times — it will not overwrite existing data.
+
+Keys initialized: `kiosco_products`, `kiosco_orders`, `kiosco_admin_phone`, `kiosco_product_images`, `kiosco_customers`, `kiosco_deliveries`, `kiosco_activity_log`, `kiosco_settings`, `kiosco_theme`, `kiosco_invoices`.
+
+After initialization, `database.js` also starts `setInterval(checkDeliveryReminders, 60000)` to poll for upcoming delivery reminders every minute.
+
+---
+
+## Products
+
+Functions for reading and writing the product catalog stored under `kiosco_products`.
+
+### `getProducts()`
+
+Returns the full product catalog as a plain object keyed by category name.
+
+**Returns:** `Object` — `{ [categoryName: string]: Product[] }`
+
+**Reads:** `kiosco_products`
+
+---
+
+### `saveProducts(products)`
+
+Persists the product catalog and notifies the UI.
+
+<ParamField path="body.products" type="object" required>
+  Full product catalog object in the same shape returned by `getProducts()`.
+</ParamField>
+
+**Dispatches:** `productsUpdated` on `window`
+
+**Writes:** `kiosco_products`
+
+---
+
+## Orders
+
+Functions for managing the order lifecycle stored under `kiosco_orders`.
+
+### `getOrders()`
+
+Returns all orders as an array, newest first.
+
+**Returns:** `Order[]`
+
+**Reads:** `kiosco_orders`
+
+---
+
+### `saveOrders(orders)`
+
+Overwrites the entire orders array. Prefer `addOrder()`, `updateOrderStatus()`, or `deleteOrder()` for targeted mutations.
+
+<ParamField path="body.orders" type="object[]" required>
+  Full array of order objects.
+</ParamField>
+
+**Dispatches:** `ordersUpdated` on `window`
+
+**Writes:** `kiosco_orders`
+
+---
+
+### `addOrder(order)`
+
+Creates a new order, prepends it to the orders array, logs activity, and optionally generates an invoice.
+
+<ParamField path="body.order" type="object" required>
+  Partial order object from the checkout form. The following fields are added automatically.
+</ParamField>
+
+Fields added automatically:
+- `id` — `Date.now()`
+- `status` — `"pendiente"`
+- `date` — current ISO timestamp
+- `orderNumber` — `orders.length + 1`
+- `deliveryStatus` — `"pendiente"`
+- `estimatedTime` — `null`
+- `paymentConfirmed` — `true` if `paymentMethod === "efectivo"`, otherwise `false`
+- `history` — `[{ status: "pendiente", date: now, note: "Pedido creado" }]`
+
+If `order.generateInvoice` is `true`, calls `generateInvoice(newOrder)` which downloads an HTML invoice file.
+
+**Returns:** `Order` — the fully populated new order object
+
+**Dispatches:** `ordersUpdated` on `window`
+
+**Writes:** `kiosco_orders`, `kiosco_activity_log`, optionally `kiosco_invoices`
+
+---
+
+### `updateOrderStatus(orderId, newStatus, note)`
+
+Updates the status of a single order and appends a history entry. Calls `notifyCustomerStatusChange()` if the order has a phone number.
+
+<ParamField path="body.orderId" type="number" required>
+  The `id` of the order to update.
+</ParamField>
+
+<ParamField path="body.newStatus" type="string" required>
+  The new status string. Valid values: `pendiente`, `confirmado`, `preparando`, `en_camino`, `entregado`, `rechazado`.
+</ParamField>
+
+<ParamField path="body.note" type="string" default='""'>
+  Optional note appended to the history entry.
+</ParamField>
+
+**Returns:** `Order` — the updated order object
+
+**Dispatches:** `ordersUpdated` on `window`
+
+**Writes:** `kiosco_orders`, `kiosco_activity_log`, `kiosco_customer_notifications`
+
+---
+
+### `deleteOrder(orderId)`
+
+Removes an order from the array permanently.
+
+<ParamField path="body.orderId" type="number" required>
+  The `id` of the order to delete.
+</ParamField>
+
+**Dispatches:** `ordersUpdated` on `window`
+
+**Writes:** `kiosco_orders`, `kiosco_activity_log`
+
+---
+
+## Settings
+
+Functions for reading and writing business configuration stored under `kiosco_settings`.
+
+### `getSettings()`
+
+**Returns:** `Settings` — the settings object, or `{}` if not yet initialized.
+
+**Reads:** `kiosco_settings`
+
+---
+
+### `saveSettings(settings)`
+
+<ParamField path="body.settings" type="object" required>
+  Full settings object. See the [data model](/reference/data-model) for the complete shape.
+</ParamField>
+
+**Dispatches:** `settingsUpdated` on `window`
+
+**Writes:** `kiosco_settings`
+
+---
+
+## Theme
+
+Functions for reading, saving, and applying the brand color theme stored under `kiosco_theme`.
+
+### `getTheme()`
+
+**Returns:** `Theme` — the theme object with five color fields. Falls back to hardcoded defaults if the key is missing.
+
+**Reads:** `kiosco_theme`
+
+---
+
+### `saveTheme(theme)`
+
+Persists the theme, immediately applies it to the page, and notifies the UI.
+
+<ParamField path="body.theme" type="object" required>
+  Theme object with `primaryColor`, `secondaryColor`, `dangerColor`, `warningColor`, and `darkColor`.
+</ParamField>
+
+**Side effect:** calls `applyThemeToPage(theme)`
+
+**Dispatches:** `themeUpdated` on `window`
+
+**Writes:** `kiosco_theme`
+
+---
+
+### `applyThemeToPage(theme)`
+
+Sets the five CSS custom properties on `:root` directly via `document.documentElement.style.setProperty()`. Called automatically by `saveTheme()`.
+
+| CSS variable | Theme field |
+|---|---|
+| `--primary` | `primaryColor` |
+| `--primary-dark` | `primaryColor` |
+| `--primary-light` | `primaryColor + "cc"` (80% alpha) |
+| `--success` | `secondaryColor` |
+| `--danger` | `dangerColor` |
+| `--warning` | `warningColor` |
+| `--dark` | `darkColor` |
+
+---
+
+## Logo
+
+Functions for managing the business logo stored as a raw base64 data URL under `kiosco_logo`.
+
+### `getLogo()`
+
+**Returns:** `string | null` — base64 data URL, or `null` if no logo is saved.
+
+**Reads:** `kiosco_logo`
+
+---
+
+### `saveLogo(logoData)`
+
+<ParamField path="body.logoData" type="string" required>
+  Base64 data URL of the logo image (e.g. from `FileReader.readAsDataURL()`).
+</ParamField>
+
+**Dispatches:** `logoUpdated` on `window`
+
+**Writes:** `kiosco_logo`
+
+---
+
+### `deleteLogo()`
+
+Removes the logo from localStorage.
+
+**Dispatches:** `logoUpdated` on `window`
+
+**Removes:** `kiosco_logo`
+
+---
+
+## Images
+
+Functions for managing per-product image galleries stored under `kiosco_product_images`. Images are stored as base64 data URL strings in arrays keyed by product ID.
+
+### `getProductImages()`
+
+**Returns:** `Object` — `{ [productId: number]: string[] }` — all images for all products.
+
+**Reads:** `kiosco_product_images`
+
+---
+
+### `getProductImagesList(productId)`
+
+**Returns:** `string[]` — array of base64 data URL strings for one product, or `[]` if none saved.
+
+<ParamField path="body.productId" type="number" required>
+  The product ID to retrieve images for.
+</ParamField>
+
+---
+
+### `saveProductImage(productId, imageData, index)`
+
+Adds or replaces an image for a product.
+
+<ParamField path="body.productId" type="number" required>
+  Product ID.
+</ParamField>
+
+<ParamField path="body.imageData" type="string" required>
+  Base64 data URL of the image.
+</ParamField>
+
+<ParamField path="body.index" type="number | null" default="null">
+  If `null`, appends the image to the product's gallery. If a valid index, replaces the image at that position.
+</ParamField>
+
+**Dispatches:** `imagesUpdated` on `window`
+
+**Writes:** `kiosco_product_images`
+
+---
+
+### `deleteProductImage(productId, index)`
+
+Removes one image or all images for a product.
+
+<ParamField path="body.productId" type="number" required>
+  Product ID.
+</ParamField>
+
+<ParamField path="body.index" type="number | null" default="null">
+  If `null`, deletes all images for the product. If a valid index, removes only that image. The entry is removed entirely when the last image is deleted.
+</ParamField>
+
+**Dispatches:** `imagesUpdated` on `window`
+
+**Writes:** `kiosco_product_images`
+
+---
+
+## Analytics
+
+Read-only functions that aggregate order data for reports. None of these functions write to localStorage.
+
+### `getDailySales(days)`
+
+<ParamField path="body.days" type="number" default="7">
+  Number of days to include, counting back from today.
+</ParamField>
+
+**Returns:** `Array<{ date: string, total: number, count: number }>` — one entry per day, oldest first.
+
+**Reads:** `kiosco_orders`
+
+---
+
+### `getSalesByMonth(months)`
+
+<ParamField path="body.months" type="number" default="12">
+  Number of months to include, counting back from the current month.
+</ParamField>
+
+**Returns:** `Array<{ month: string, total: number, count: number }>` — one entry per month in `YYYY-MM` format, oldest first.
+
+**Reads:** `kiosco_orders`
+
+---
+
+### `getPeakHours()`
+
+Aggregates order counts and revenue by hour of the day across all orders.
+
+**Returns:** `{ [hour: 0..23]: { count: number, revenue: number } }`
+
+**Reads:** `kiosco_orders`
+
+---
+
+### `getTopCustomers(limit)`
+
+<ParamField path="body.limit" type="number" default="5">
+  Maximum number of customers to return.
+</ParamField>
+
+**Returns:** `Array<{ phone: string, name: string, totalSpent: number, orderCount: number }>` — sorted descending by `totalSpent`.
+
+**Reads:** `kiosco_orders`
+
+---
+
+### `getMostProfitableProducts(limit)`
+
+Joins order items with the product catalog to calculate actual profit using the `cost` field. Falls back to 60% of sale price when `cost` is missing.
+
+<ParamField path="body.limit" type="number" default="5">
+  Maximum number of products to return.
+</ParamField>
+
+**Returns:** `Array<{ name: string, quantity: number, revenue: number, cost: number, profit: number }>` — sorted descending by `profit`.
+
+**Reads:** `kiosco_orders`, `kiosco_products`
+
+---
+
+## Notifications
+
+Functions for writing and reading customer-facing status notifications stored under `kiosco_customer_notifications`.
+
+### `notifyCustomerStatusChange(phone, orderNumber, status)`
+
+Creates a notification entry for the customer and, if the browser has granted notification permission, fires a native browser `Notification`.
+
+<ParamField path="body.phone" type="string" required>
+  Customer phone number used as the key.
+</ParamField>
+
+<ParamField path="body.orderNumber" type="number" required>
+  Display order number shown in the notification message.
+</ParamField>
+
+<ParamField path="body.status" type="string" required>
+  The new order status. Mapped to a localized message string.
+</ParamField>
+
+**Writes:** `kiosco_customer_notifications`
+
+**Side effect:** fires `new Notification(...)` when `Notification.permission === "granted"`
+
+---
+
+### `getCustomerNotifications(phone)`
+
+<ParamField path="body.phone" type="string" required>
+  Customer phone number.
+</ParamField>
+
+**Returns:** `Notification[]` — array of notification objects for this phone, or `[]`.
+
+**Reads:** `kiosco_customer_notifications`
+
+---
+
+### `markNotificationAsRead(phone, notificationId)`
+
+Sets `read: true` on a specific notification.
+
+<ParamField path="body.phone" type="string" required>
+  Customer phone number.
+</ParamField>
+
+<ParamField path="body.notificationId" type="number" required>
+  The `id` of the notification to mark as read.
+</ParamField>
+
+**Writes:** `kiosco_customer_notifications`
+
+---
+
+## Invoices
+
+### `generateInvoice(order)`
+
+Generates an invoice from a completed order, stores it, and auto-downloads an HTML file to the admin's device.
+
+<ParamField path="body.order" type="object" required>
+  A fully populated order object (as returned by `addOrder()`).
+</ParamField>
+
+**Returns:** `Invoice` — the generated invoice object
+
+**Side effect:** creates and clicks a temporary `<a>` element to download `factura_F001-XXXXXXXX.html`
+
+**Writes:** `kiosco_invoices`
+
+**Reads:** `kiosco_settings` (for business name, RUC, and address)
+
+---
+
+### `getInvoices()`
+
+**Returns:** `Invoice[]` — all invoices, newest first.
+
+**Reads:** `kiosco_invoices`
+
+---
+
+## Delivery scheduling
+
+### `scheduleDelivery(orderId, deliveryWindow, deliveryDate)`
+
+Updates an order with a delivery window and date, and sets its status to `"programado"`.
+
+<ParamField path="body.orderId" type="number" required>
+  The order to schedule.
+</ParamField>
+
+<ParamField path="body.deliveryWindow" type="string" required>
+  Time slot string from the configured delivery windows, e.g. `"14:00-16:00"`.
+</ParamField>
+
+<ParamField path="body.deliveryDate" type="string" required>
+  ISO 8601 date-time string for the scheduled delivery.
+</ParamField>
+
+**Writes:** `kiosco_orders`
+
+---
+
+### `checkDeliveryReminders()`
+
+Scans all orders with status `"programado"` and sends reminder notifications at 1 hour and 30 minutes before the scheduled delivery time. Called automatically every 60 seconds by `setInterval`.
+
+- At **≤ 1 hour** before delivery: writes a reminder notification and sets `notified1Hour: true` on the order.
+- At **≤ 30 minutes** before delivery: writes an urgent reminder and sets `notified30Min: true` and `scheduledNotification: true` on the order.
+
+**Writes:** `kiosco_customer_notifications`, `kiosco_orders`
+
+---
+
+## Activity log
+
+### `addActivityLog(action, description, type)`
+
+Prepends an entry to the activity log. Removes the oldest entry when the log exceeds 500 entries.
+
+<ParamField path="body.action" type="string" required>
+  Short label, e.g. `"Nuevo pedido"`.
+</ParamField>
+
+<ParamField path="body.description" type="string" required>
+  Full description of the action.
+</ParamField>
+
+<ParamField path="body.type" type="string" default='"general"'>
+  Category tag. Common value: `"order"`.
+</ParamField>
+
+**Dispatches:** `activityUpdated` on `window`
+
+**Writes:** `kiosco_activity_log`
+
+---
+
+### `getActivityLog(limit)`
+
+<ParamField path="body.limit" type="number" default="100">
+  Maximum number of entries to return.
+</ParamField>
+
+**Returns:** `ActivityLogEntry[]` — the most recent entries up to `limit`.
+
+**Reads:** `kiosco_activity_log`
+
+---
+
+### `clearActivityLog()`
+
+Empties the activity log completely.
+
+**Writes:** `kiosco_activity_log`
+
+---
+
+## Auth
+
+### `isAdmin(phone)`
+
+Compares a phone number against the stored admin phone, stripping all whitespace and `+` characters before comparing.
+
+<ParamField path="body.phone" type="string" required>
+  Phone number to test.
+</ParamField>
+
+**Returns:** `boolean`
+
+**Reads:** `kiosco_admin_phone`

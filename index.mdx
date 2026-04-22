@@ -1,97 +1,70 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Kiosco: Virtual store for small businesses"
+description: "Kiosco is a browser-based virtual kiosk that helps small businesses sell products, manage orders, track deliveries, and analyze sales — no server required."
 ---
 
-## Setting up
+Kiosco is an all-in-one virtual store that runs entirely in the browser. It gives small businesses a ready-to-use product catalog, shopping cart, order management system, and admin dashboard — with no backend infrastructure needed. Everything is stored locally and works offline as a Progressive Web App.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Open your store and make your first sale in minutes
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Store setup" icon="gear" href="/setup/configuration">
+    Configure your business name, delivery costs, and hours
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Products & categories" icon="box" href="/setup/products-categories">
+    Add your product catalog with images, prices, and stock
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Admin dashboard" icon="chart-line" href="/features/admin-dashboard">
+    Monitor orders, revenue, and top products in real time
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## What Kiosco includes
 
-Everything you need to create world-class documentation.
+Kiosco ships with everything a small kiosk or delivery business needs out of the box:
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+<CardGroup cols={3}>
+  <Card title="Product catalog" icon="store">
+    Organize products into categories with images, pricing, stock levels, and cost tracking
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
+  <Card title="Shopping cart" icon="cart-shopping">
+    Customers browse, add items, and check out with a delivery address or scheduled window
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
+  <Card title="Order tracking" icon="truck">
+    Real-time status updates from pending through delivered, with push notifications
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="Payment methods" icon="credit-card">
+    Accept Yape, Plin, bank transfer, or cash on delivery — configurable per store
   </Card>
-</Columns>
+  <Card title="Sales analytics" icon="chart-bar">
+    Revenue charts, peak-hour analysis, top customers, and most profitable products
+  </Card>
+  <Card title="Electronic invoicing" icon="file-invoice">
+    Generate factura electrónica with IGV breakdown, auto-downloaded as HTML
+  </Card>
+</CardGroup>
 
-## Need inspiration?
+## Get started
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<Steps>
+  <Step title="Open the store">
+    Open `index.html` in a browser or deploy the files to any static hosting provider. No build step required.
+  </Step>
+  <Step title="Access the admin panel">
+    Click the **Admin** button in the top-right corner and enter the registered phone number to log in. The default admin number is `+51914491874`.
+  </Step>
+  <Step title="Add your products">
+    Go to the **Dashboard** tab, create categories under **Categorías**, then add products with name, price, stock, and cost.
+  </Step>
+  <Step title="Configure your business">
+    Open **Configuración** to set your business name, RUC, delivery cost, free-delivery threshold, and accepted payment methods.
+  </Step>
+  <Step title="Share your store">
+    Share the URL with customers. They browse your catalog, add to cart, and place orders — you manage everything from the admin panel.
+  </Step>
+</Steps>
+
+<Tip>
+  Kiosco works offline once loaded. Install it as a PWA on your phone or tablet to access the admin panel on the go without an internet connection.
+</Tip>

@@ -1,0 +1,152 @@
+---
+title: "Kiosco storefront: browse, search, and shop"
+description: "The Kiosco customer storefront (index.html) offers category navigation, text search, price filtering, sort options, dark mode, and a flying cart animation."
+---
+
+The Kiosco storefront (`index.html`) is the customer-facing shop where visitors browse the catalog, filter by category or price, and add products to their cart. It loads entirely from `localStorage`, so no network requests are needed after the initial page load — making it fast and installable as a PWA.
+
+## Page layout
+
+The storefront is organized into four main regions.
+
+<CardGroup cols={2}>
+  <Card title="Header" icon="layout-panel-top">
+    The store logo links back to `index.html`. The header also contains the dark mode toggle, the "Mis Pedidos" link to the order tracking portal, and an Admin button that opens `admin.html` in a new tab.
+  </Card>
+  <Card title="Welcome banner" icon="sparkles">
+    A full-width banner below the header greets shoppers. It serves as a visual separator between the header and the search/filter controls.
+  </Card>
+  <Card title="Categories sidebar" icon="sidebar">
+    An `<aside>` on the left lists every category that the admin has created. Clicking a category filters the products grid to that category and highlights the active button.
+  </Card>
+  <Card title="Products grid" icon="grid-2x2">
+    The main content area renders product cards in a responsive grid. While products load from `localStorage`, three animated skeleton cards are shown as placeholders.
+  </Card>
+</CardGroup>
+
+## Search and filtering
+
+The search bar and filter controls sit between the welcome banner and the main content area. All filters apply instantly — no submit button is needed.
+
+<AccordionGroup>
+  <Accordion title="Text search">
+    Typing in the search box filters the current category's products by name (case-insensitive substring match). The grid re-renders on every keystroke via the `input` event listener on `#searchProducts`.
+  </Accordion>
+  <Accordion title="Sort order">
+    The sort dropdown (`#sortBy`) supports four options:
+
+    | Value | Order |
+    |---|---|
+    | `price_asc` | Price: lowest to highest |
+    | `price_desc` | Price: highest to lowest |
+    | `name_asc` | Name: A to Z |
+    | `name_desc` | Name: Z to A |
+
+    Selecting an option immediately re-sorts the current filtered result.
+  </Accordion>
+  <Accordion title="Price range">
+    Two number inputs (`#minPrice` and `#maxPrice`) let shoppers enter a minimum and maximum price in Peruvian soles (S/). Either field is optional — leaving one blank removes that bound from the filter.
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+  All four filters — text search, sort order, minimum price, and maximum price — are applied together on every change. The `renderProducts` function in `client.js` receives all four values and computes the filtered, sorted result in a single pass.
+</Note>
+
+## Category browsing
+
+Categories come directly from the admin's product catalog stored in `localStorage` under `kiosco_products`. When the page loads, `renderCategories()` reads that object, creates one button per key, and appends them to the sidebar.
+
+<Steps>
+  <Step title="Page load">
+    `renderCategories()` is called. It reads `kiosco_products` and renders a button for each category key (e.g., "Bebidas", "Snacks", "Dulces"). The first category is selected automatically and its products are displayed.
+  </Step>
+  <Step title="Category click">
+    Clicking a category button removes the `active` class from all other buttons, adds it to the clicked button, and calls `renderProducts(category)` with the new category name. The section heading above the grid updates to match.
+  </Step>
+  <Step title="Filter with category active">
+    Search text, sort order, and price filters all respect the currently selected category — they never show products from a different category.
+  </Step>
+</Steps>
+
+## Product cards
+
+Each card in the products grid shows the key details a shopper needs before adding an item to the cart.
+
+<CardGroup cols={2}>
+  <Card title="Product image" icon="image">
+    If the admin has uploaded an image for the product, it renders as a 140 px tall cover image. If no image is set, a placeholder box with a camera icon is shown instead.
+  </Card>
+  <Card title="Name and price" icon="tag">
+    The product name appears as a heading below the image. The price is formatted as `S/ X.XX` using Peruvian soles.
+  </Card>
+  <Card title="Stock badge" icon="package">
+    The badge uses color to communicate availability at a glance: green for sufficient stock, amber for fewer than 10 units, and red with "Agotado" (out of stock) when stock reaches zero.
+  </Card>
+  <Card title="Add to cart button" icon="shopping-cart">
+    The button reads "Agregar" when stock is available, and "Sin stock" (disabled) when it is not. Clicking either the button or the card itself triggers `addToCart`.
+  </Card>
+</CardGroup>
+
+## Skeleton loading animation
+
+Before `localStorage` has been read and the products grid has rendered, three skeleton cards are displayed in the grid. Each skeleton uses a CSS `linear-gradient` that animates with a shimmer effect (`animation: loading 1.5s infinite`). They are replaced by real product cards as soon as `renderProducts` completes.
+
+## Dark mode
+
+A toggle in the header switches between light and dark themes. The preference is written to `localStorage` under the key `kiosco_theme` as the string `'dark'` or `'light'`.
+
+```javascript client.js
+if (themeToggle) {
+    if (localStorage.getItem('kiosco_theme') === 'dark') document.body.classList.add('dark-mode');
+    themeToggle.addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+        localStorage.setItem('kiosco_theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+    });
+}
+```
+
+On page load, if `kiosco_theme` is the string `'dark'`, the `dark-mode` class is added to `<body>` before the first paint, preventing a theme flash.
+
+<Note>
+  The `kiosco_theme` key is also used to store the brand color object (when the admin sets custom colors from the Personalizar tab). The dark-mode check specifically tests whether the stored value is the string `'dark'`, while color application reads it as an object via `getTheme()`.
+</Note>
+
+## Theme color customization
+
+The admin can set custom brand colors from the admin panel. Those colors are stored in `localStorage` under `kiosco_theme` as a JSON object and applied to the page via CSS custom properties.
+
+```javascript database.js
+function applyThemeToPage(theme) {
+    const root = document.documentElement;
+    root.style.setProperty('--primary', theme.primaryColor);
+    root.style.setProperty('--success', theme.secondaryColor);
+    root.style.setProperty('--danger', theme.dangerColor);
+    root.style.setProperty('--warning', theme.warningColor);
+}
+```
+
+All components — buttons, badges, cart FAB, highlights — automatically pick up these variables, so a single theme change recolors the entire storefront.
+
+## Product flying animation
+
+When a shopper adds a product to the cart, `animateFlyingProduct(cardElement, cartFabElement)` creates a ghost clone of the card that flies from its position to the cart button. The animation uses `position: fixed`, a CSS `transition` with `cubic-bezier` easing, and a `scale(0.3)` + `opacity: 0` end state. After 500 ms the clone is removed and the cart FAB briefly scales up to 1.2× to confirm receipt.
+
+## WhatsApp floating button
+
+A fixed button in the bottom-left corner opens a WhatsApp chat with the admin's configured number. The `href` is set to `https://wa.me/<adminPhone>`, linking directly to the WhatsApp web or mobile app. This gives shoppers a quick way to ask questions without leaving the storefront.
+
+<Tip>
+  The admin's WhatsApp number is initialized in `database.js` via `kiosco_admin_phone`. Update it from the admin settings panel so the button always links to the correct contact.
+</Tip>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Shopping cart and checkout" icon="shopping-cart" href="/features/shopping-cart">
+    How the cart modal works, delivery address selection, and the full checkout flow.
+  </Card>
+  <Card title="Order tracking" icon="package-search" href="/features/order-tracking">
+    How customers follow their orders after placing them.
+  </Card>
+</CardGroup>

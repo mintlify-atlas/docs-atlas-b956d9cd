@@ -1,0 +1,106 @@
+---
+title: "Configure your Kiosco business settings"
+description: "Set your business name, phone number, RUC, address, delivery fees, and operating hours from the Kiosco admin panel Configuración tab."
+---
+
+The Settings tab in the Kiosco admin panel lets you control how your business appears to customers and how delivery costs are calculated. All settings are saved instantly to `localStorage` under the key `kiosco_settings` and take effect across the storefront and generated invoices without a page reload.
+
+## Accessing settings
+
+<Steps>
+  <Step title="Open the admin panel">
+    Navigate to `admin.html` in your browser and log in with your registered phone number.
+  </Step>
+  <Step title="Go to the Configuración tab">
+    Click the **Configuración** tab in the main navigation bar at the top of the dashboard.
+  </Step>
+  <Step title="Edit and save">
+    Update any fields and click **Guardar configuración** to persist your changes.
+  </Step>
+</Steps>
+
+## Business identity
+
+These fields identify your business on customer-facing pages and on generated invoices.
+
+<ParamField path="businessName" type="string" default="Kiosco">
+  The display name of your store. Appears in the storefront header, browser title, and on every invoice. Changing this value updates all new invoices immediately.
+</ParamField>
+
+<ParamField path="businessPhone" type="string" default="+51914491874">
+  Your contact phone number. Shown to customers and used as the default number in payment method instructions for Yape and Plin.
+</ParamField>
+
+<ParamField path="businessRUC" type="string" default="">
+  Your tax identification number (RUC). Printed on electronic invoices. Leave blank if you do not issue formal invoices.
+</ParamField>
+
+<ParamField path="businessAddress" type="string" default="">
+  Your business address. Printed on electronic invoices alongside the RUC.
+</ParamField>
+
+<Tip>
+  Updating `businessName` affects the store header and all invoices generated after the change. Invoices already created retain the name that was active at the time they were issued.
+</Tip>
+
+## Delivery cost settings
+
+Kiosco applies a flat delivery fee to every order unless the cart total reaches the free-delivery threshold.
+
+<ParamField path="deliveryCost" type="number" default="3.0">
+  The flat delivery fee charged per order, in Soles (S/). Displayed at checkout and included in the order total.
+</ParamField>
+
+<ParamField path="freeDeliveryMin" type="number" default="20">
+  The minimum cart subtotal (S/) required for free delivery. When a customer's cart reaches this amount, the delivery fee is waived automatically at checkout.
+</ParamField>
+
+<Note>
+  Delivery cost settings are stored as part of `kiosco_settings` in `localStorage`. To configure delivery time windows, see [Delivery options](/setup/delivery).
+</Note>
+
+## Operating hours
+
+<ParamField path="scheduleStart" type="string" default="08:00">
+  The time your store opens, in 24-hour format. Used to determine when customers can place orders.
+</ParamField>
+
+<ParamField path="scheduleEnd" type="string" default="22:00">
+  The time your store closes, in 24-hour format.
+</ParamField>
+
+## How settings are stored
+
+All business settings are serialized as a single JSON object and saved to `localStorage` under the key `kiosco_settings`. The full default structure is:
+
+```json kiosco_settings
+{
+  "businessName": "Kiosco",
+  "businessPhone": "+51914491874",
+  "businessRUC": "",
+  "businessAddress": "",
+  "deliveryCost": 3.0,
+  "freeDeliveryMin": 20,
+  "scheduleStart": "08:00",
+  "scheduleEnd": "22:00",
+  "paymentMethods": ["yape", "plin", "transferencia", "efectivo"],
+  "deliveryWindows": ["10:00-12:00", "12:00-14:00", "14:00-16:00", "16:00-18:00", "18:00-20:00"]
+}
+```
+
+Settings are loaded by `getSettings()` and written by `saveSettings()` in `database.js`. A `settingsUpdated` event is dispatched on `window` whenever settings are saved, so other parts of the application can react in real time.
+
+<Warning>
+  Because all data is stored in the browser's `localStorage`, settings are tied to the device and browser where the admin panel is running. Clearing browser storage will reset all settings to their defaults on next load.
+</Warning>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Delivery options" icon="truck" href="/setup/delivery">
+    Configure delivery fees, time windows, and scheduled delivery.
+  </Card>
+  <Card title="Payment methods" icon="credit-card" href="/setup/payment-methods">
+    Add or remove payment methods shown at checkout.
+  </Card>
+</CardGroup>

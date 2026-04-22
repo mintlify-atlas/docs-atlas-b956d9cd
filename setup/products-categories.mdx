@@ -1,0 +1,175 @@
+---
+title: "Manage products and categories in Kiosco"
+description: "Add, edit, and organize your product catalog into categories with images, pricing, stock tracking, and cost data for profit analytics in Kiosco."
+---
+
+Kiosco organizes your product catalog as a flat object where each key is a category name and each value is an array of products. You manage everything from the **Dashboard** tab of the admin panel, which gives you separate sub-tabs for products and categories.
+
+## Data structure
+
+Products are stored in `localStorage` under the key `kiosco_products` in the following shape:
+
+```json kiosco_products
+{
+  "🥤 Bebidas": [
+    { "id": 1, "name": "Coca Cola 500ml", "price": 3.5, "stock": 50, "cost": 2.0 }
+  ],
+  "🍿 Snacks": [
+    { "id": 5, "name": "Papas Lays", "price": 4.0, "stock": 20, "cost": 2.5 }
+  ],
+  "🍫 Dulces": [
+    { "id": 8, "name": "Chocolate Sublime", "price": 2.5, "stock": 40, "cost": 1.2 }
+  ]
+}
+```
+
+The three default categories ship with nine sample products. You can rename, extend, or replace them entirely.
+
+## Product fields
+
+Each product record contains the following fields:
+
+<ParamField path="id" type="number" required>
+  Auto-generated unique identifier using `Date.now()`. Used to link product images and track sales across orders.
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  The product name shown on the storefront and in invoices.
+</ParamField>
+
+<ParamField path="price" type="number" required>
+  The customer-facing selling price in Soles (S/). This is what appears on the storefront and what gets charged at checkout.
+</ParamField>
+
+<ParamField path="stock" type="number" default="0">
+  The current inventory count. Products with zero stock remain visible but cannot be added to the cart.
+</ParamField>
+
+<ParamField path="cost" type="number">
+  Your purchase cost in Soles (S/). Not shown to customers. Used exclusively for profit calculations in the Reports tab. If omitted, the system estimates cost as 60% of the selling price.
+</ParamField>
+
+<Note>
+  `price` and `cost` serve different purposes. `price` is what customers pay; `cost` is what you paid to acquire the product. The difference is your gross profit per unit, which feeds the **Most Profitable Products** report.
+</Note>
+
+## Managing categories
+
+Categories must exist before you can add products to them.
+
+<Steps>
+  <Step title="Open the Categories tab">
+    In the admin panel, go to **Dashboard** and click the **Categorías** sub-tab.
+  </Step>
+  <Step title="Enter a category name">
+    Type the category name in the input field. You can include an emoji prefix (e.g., `🧃 Jugos`) — it will appear as-is on the storefront.
+  </Step>
+  <Step title="Click Agregar">
+    Click the **Agregar** button. The category is saved immediately and becomes available in the product form's category selector.
+  </Step>
+</Steps>
+
+To delete a category, click the trash icon next to it. Deleting a category also permanently removes all products in it.
+
+<Warning>
+  Deleting a category is irreversible. All products inside that category and their associated images will be removed from `localStorage`.
+</Warning>
+
+## Adding a product
+
+<Steps>
+  <Step title="Open the Products tab">
+    In the admin panel, go to **Dashboard** and click the **Productos** sub-tab.
+  </Step>
+  <Step title="Select a category">
+    Choose the target category from the dropdown at the top of the form.
+  </Step>
+  <Step title="Fill in the product fields">
+    Enter the product name, selling price (S/), stock count, and optionally the cost (S/). All monetary values accept decimal increments of 0.50.
+  </Step>
+  <Step title="Click Agregar">
+    Click the **Agregar** button. The product appears in the list below, grouped under its category.
+  </Step>
+</Steps>
+
+## Editing products
+
+Once a product is added, you can update its stock and cost directly from the product list. Full name and price editing is not exposed in the UI — to change a product's name or price, delete it and re-add it with the correct values.
+
+<AccordionGroup>
+  <Accordion title="Updating stock">
+    Click the **Stock** button next to any product. A prompt shows the current stock count and lets you enter a new value. The storefront reflects the change immediately.
+  </Accordion>
+  <Accordion title="Updating cost">
+    Click the **Costo** button next to any product. Enter the new purchase cost in Soles. This only affects profit analytics — customers never see this value.
+  </Accordion>
+  <Accordion title="Deleting a product">
+    Click the trash icon next to any product and confirm the deletion. The product and all its associated images are removed from storage.
+  </Accordion>
+</AccordionGroup>
+
+## Adding product images
+
+Each product can have multiple images. Images are stored as base64 data URLs in `localStorage` under the key `kiosco_product_images`, keyed by product ID.
+
+<Steps>
+  <Step title="Open the image gallery">
+    Click the **Imágenes** button next to a product. A modal opens showing any existing images for that product.
+  </Step>
+  <Step title="Select a file">
+    Use the file input in the modal to choose an image from your device. A preview appears before you save.
+  </Step>
+  <Step title="Click Agregar imagen">
+    Click **Agregar imagen** to save the image. It is immediately linked to the product and displayed on the storefront.
+  </Step>
+  <Step title="Remove images if needed">
+    Each thumbnail in the gallery has an **✕** button. Click it to delete that individual image.
+  </Step>
+</Steps>
+
+<Tip>
+  The first image in a product's gallery is used as its thumbnail on the storefront product cards. Upload your best-quality image first.
+</Tip>
+
+## Stock and the storefront
+
+Stock levels directly control what customers can add to their cart. When a product's stock reaches zero, the add-to-cart button is disabled on the storefront, preventing overselling. The stock count decreases automatically when an order is placed and increases if an order is cancelled or deleted.
+
+## Default catalog
+
+Kiosco ships with the following products to help you get started:
+
+<Tabs>
+  <Tab title="Bebidas">
+    | Product | Price | Stock | Cost |
+    |---|---|---|---|
+    | Coca Cola 500ml | S/ 3.50 | 50 | S/ 2.00 |
+    | Inca Kola 500ml | S/ 3.50 | 45 | S/ 2.00 |
+    | Sprite 500ml | S/ 3.00 | 30 | S/ 1.80 |
+    | Fanta 500ml | S/ 3.00 | 25 | S/ 1.80 |
+  </Tab>
+  <Tab title="Snacks">
+    | Product | Price | Stock | Cost |
+    |---|---|---|---|
+    | Papas Lays | S/ 4.00 | 20 | S/ 2.50 |
+    | Doritos | S/ 4.50 | 15 | S/ 2.80 |
+    | Ruffles | S/ 4.00 | 18 | S/ 2.50 |
+  </Tab>
+  <Tab title="Dulces">
+    | Product | Price | Stock | Cost |
+    |---|---|---|---|
+    | Chocolate Sublime | S/ 2.50 | 40 | S/ 1.20 |
+    | M&M's | S/ 3.00 | 35 | S/ 1.50 |
+  </Tab>
+</Tabs>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Reports and analytics" icon="chart-bar" href="/features/reports-analytics">
+    See how cost data feeds into profit reports.
+  </Card>
+  <Card title="Admin dashboard" icon="layout-dashboard" href="/features/admin-dashboard">
+    Overview of all admin panel features.
+  </Card>
+</CardGroup>

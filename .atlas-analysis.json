@@ -1,0 +1,89 @@
+{
+  "projectType": "saas",
+  "projectName": "Kiosco",
+  "projectDescription": "A virtual kiosk web application that lets small businesses manage their product catalog, receive customer orders, track deliveries, and analyze sales in real time.",
+  "theme": "almond",
+  "primaryColor": "#6366f1",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Getting Started",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": ["introduction", "quickstart"]
+          },
+          {
+            "group": "Store Setup",
+            "pages": ["setup/configuration", "setup/products-categories", "setup/payment-methods", "setup/delivery"]
+          }
+        ]
+      },
+      {
+        "tab": "Features",
+        "groups": [
+          {
+            "group": "Customer Experience",
+            "pages": ["features/storefront", "features/shopping-cart", "features/order-tracking"]
+          },
+          {
+            "group": "Admin Panel",
+            "pages": ["features/admin-dashboard", "features/reports-analytics", "features/customization"]
+          },
+          {
+            "group": "Orders & Payments",
+            "pages": ["features/order-management", "features/payment-methods", "features/invoicing"]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Data & Storage",
+            "pages": ["reference/data-model", "reference/localstorage-api"]
+          },
+          {
+            "group": "Deployment",
+            "pages": ["reference/deployment", "reference/pwa"]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Product catalog with categories, images, stock and pricing",
+    "Shopping cart with quantity management and subtotals",
+    "Order management with real-time status updates (pending, confirmed, preparing, on the way, delivered)",
+    "Multiple payment methods: Yape, Plin, bank transfer, and cash on delivery",
+    "Delivery scheduling with time windows and map-based address selection",
+    "Admin dashboard with sales stats, revenue charts, peak-hour analysis, and top customers",
+    "Electronic invoice (factura electrónica) generation with IGV calculation",
+    "Store customization: brand colors, logo upload, business name/RUC/address",
+    "Customer order tracking portal with push notifications",
+    "Dark mode support and PWA (Progressive Web App) capabilities"
+  ],
+  "publicApiSurface": [
+    "initDB() — initializes localStorage with default products, settings, and admin phone",
+    "getProducts() / saveProducts(products) — read/write product catalog",
+    "getOrders() / saveOrders(orders) — read/write orders array",
+    "addOrder(order) — create a new order and trigger notifications",
+    "updateOrderStatus(orderId, newStatus, note) — change order status and notify customer",
+    "deleteOrder(orderId) — remove an order",
+    "getSettings() / saveSettings(settings) — business configuration (name, phone, RUC, delivery cost)",
+    "getTheme() / saveTheme(theme) — store color theme settings",
+    "generateInvoice(order) — create and download an electronic invoice HTML",
+    "getMostProfitableProducts(limit) — analytics: top products by margin",
+    "getTopCustomers(limit) — analytics: top customers by spend",
+    "getDailySales(days) / getSalesByMonth(months) — sales time-series data",
+    "getPeakHours() — hourly order and revenue statistics",
+    "getProductImages() / saveProductImage(productId, imageData) — product image management",
+    "isAdmin(phone) — check if a phone number matches the admin credential",
+    "notifyCustomerStatusChange(phone, orderNumber, status) — send in-app + push notification to customer",
+    "scheduleDelivery(orderId, deliveryWindow, deliveryDate) — schedule a future delivery",
+    "addActivityLog(action, description, type) — append to admin activity log",
+    "getPaymentMethods() / getPaymentMethodDetails(method) — payment method configuration"
+  ]
+}

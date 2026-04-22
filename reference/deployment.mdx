@@ -1,0 +1,134 @@
+---
+title: "Deploy Kiosco to GitHub Pages, Netlify, or Vercel"
+description: "Kiosco is a purely static site with no build step. Deploy to GitHub Pages, Netlify, Vercel, nginx, or any web server in under five minutes."
+---
+
+Kiosco is a purely static application: a set of HTML, CSS, and JavaScript files with no server-side code and no database server. Deploying it means copying those files to any web host that can serve static content. There is no build step, no compilation, and no environment variables to configure.
+
+<Note>
+  All data is stored in the visitor's browser `localStorage`. Different browsers and devices each maintain a separate, isolated data store. For consistent access across devices — for example, if the admin uses a phone and customers use desktops — all visitors must load Kiosco from the **same deployed URL**. Data is not synced between browsers or devices.
+</Note>
+
+---
+
+## Deployment options
+
+<Tabs>
+  <Tab title="GitHub Pages">
+    GitHub Pages serves any public repository's files for free at `https://<username>.github.io/<repo>`.
+
+    <Steps>
+      <Step title="Push your files to a GitHub repository">
+        Create a new repository on github.com and push the Kiosco directory to it. All files (`index.html`, `admin.html`, `js/`, `css/`, `assets/`, `manifest.json`, `sw.js`) must be at the root of the branch you want to deploy.
+      </Step>
+      <Step title="Open repository settings">
+        In your repository on GitHub, click **Settings**, then **Pages** in the left sidebar.
+      </Step>
+      <Step title="Select a branch">
+        Under **Build and deployment**, set the source to **Deploy from a branch**, choose your branch (typically `main`), set the folder to `/ (root)`, and click **Save**.
+      </Step>
+      <Step title="Wait for deployment">
+        GitHub will build and publish the site within a minute or two. The URL will appear at the top of the Pages settings page.
+      </Step>
+    </Steps>
+
+    <Warning>
+      The service worker registers at `/sw.js`. If your site is deployed to a subdirectory (e.g. `https://user.github.io/kiosco/`), the service worker scope will be limited to that subdirectory. Offline caching will still work but you may need to update the `sw.js` `CACHE_NAME` and asset paths if you modify the site structure.
+    </Warning>
+  </Tab>
+  <Tab title="Netlify">
+    Netlify offers one-click deployment with a free tier and automatic HTTPS.
+
+    <Steps>
+      <Step title="Go to netlify.com">
+        Sign in or create a free account.
+      </Step>
+      <Step title="Deploy by drag and drop">
+        On the Netlify dashboard, drag and drop your Kiosco project folder onto the page labeled **"Want to deploy a new site without connecting to Git?"**. Netlify uploads and publishes it immediately.
+      </Step>
+      <Step title="Or connect a Git repository">
+        Click **Add new site → Import an existing project**, authorize GitHub, select your repository, leave the build command empty, set the publish directory to `.` (root), and click **Deploy site**.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Vercel">
+    Vercel is optimized for frontend projects and deploys directly from Git.
+
+    <Steps>
+      <Step title="Import your repository">
+        Go to vercel.com, sign in, click **Add New → Project**, and import your GitHub repository.
+      </Step>
+      <Step title="Configure the project">
+        Leave **Build Command** empty. Set **Output Directory** to `.` (the repository root). Click **Deploy**.
+      </Step>
+      <Step title="Visit your deployment">
+        Vercel assigns a `.vercel.app` URL immediately after the first deploy. Every push to the main branch redeploys automatically.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Any web server">
+    Kiosco runs on any HTTP server that can serve static files.
+
+    **nginx example:**
+
+    ```nginx
+    server {
+        listen 80;
+        server_name yourdomain.com;
+        root /var/www/kiosco;
+        index index.html;
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+    ```
+
+    **Apache example:**
+
+    Place the files in your `DocumentRoot` and ensure `DirectoryIndex index.html` is set. No `.htaccess` rewrite rules are required.
+
+    **Node.js / Python quick server (local testing only):**
+
+    ```bash
+    # Node.js
+    npx serve .
+
+    # Python
+    python3 -m http.server 8080
+    ```
+  </Tab>
+  <Tab title="Local file">
+    You can open `index.html` directly in a browser using a `file://` URL for quick testing.
+
+    <Warning>
+      The service worker (`sw.js`) requires an HTTP or HTTPS context to register. It will not activate when opened via `file://`. Offline caching and PWA installation will not work in this mode. Use a local HTTP server for full functionality during development.
+    </Warning>
+  </Tab>
+</Tabs>
+
+---
+
+## Custom domain
+
+Setting a custom domain is handled entirely by your hosting provider — Kiosco itself requires no changes.
+
+- **GitHub Pages:** add a `CNAME` file to your repository containing your domain, then configure your DNS provider to point to GitHub's servers.
+- **Netlify:** go to **Site settings → Domain management → Add custom domain** and follow the DNS instructions.
+- **Vercel:** go to **Settings → Domains**, add your domain, and update your DNS records as directed.
+
+---
+
+## No environment variables required
+
+Kiosco has no server-side configuration. The admin phone number is seeded into `localStorage` on first load by `initDB()` with the default value `+51914491874`. To change it, update the default in `database.js` before deploying, or change it through the admin panel after the first load.
+
+---
+
+## Multi-device considerations
+
+Because all data lives in the browser's `localStorage`, the following constraints apply:
+
+- **Admin on a different device than the customer:** both must use the same deployed URL. Opening the site from a file path or a different domain creates a completely separate data store.
+- **No real-time sync:** changes made in one browser tab are not automatically reflected in other tabs or devices. Refreshing the page will load the latest data from the local store.
+- **Data backup:** export your data periodically from the admin panel. Clearing browser data or switching browsers will erase all orders, products, and settings.

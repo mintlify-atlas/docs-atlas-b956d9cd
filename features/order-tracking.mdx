@@ -1,0 +1,174 @@
+---
+title: "Customer order tracking portal in Kiosco"
+description: "The Kiosco order tracking portal lets customers look up orders by phone number, follow live delivery status, and receive in-app and push notifications."
+---
+
+The order tracking portal (`client-orders.html`) gives customers a dedicated view of everything they have ordered from the store. It reads directly from `localStorage`, so updates made by the admin — such as changing an order's status — appear automatically without requiring a page reload. Customers access it by clicking "Mis Pedidos" in the storefront header or by navigating to `client-orders.html` directly.
+
+## Accessing the portal
+
+<Steps>
+  <Step title="Navigate to the portal">
+    Click the "Mis Pedidos" button in the storefront header. This is a standard anchor link that navigates to `client-orders.html`.
+  </Step>
+  <Step title="Log in with your phone number">
+    Enter the phone number you used when placing an order, then click "Ver mis pedidos". The portal looks up your orders in `kiosco_orders` filtered by `customerPhone`.
+  </Step>
+  <Step title="Auto-login on return visits">
+    If a phone number is saved in `localStorage` under `kiosco_customer_phone`, the login form is pre-filled and the login button is clicked automatically after 500 ms. You are taken straight to your dashboard.
+  </Step>
+</Steps>
+
+<Note>
+  Your phone number is saved to `localStorage` on first login. To switch to a different number, clear your browser's site data or manually enter a new number on the login screen.
+</Note>
+
+## Dashboard stats
+
+After logging in, three stat cards appear at the top of the dashboard.
+
+<CardGroup cols={3}>
+  <Card title="Total pedidos" icon="package">
+    The total number of orders placed with this phone number, across all statuses.
+  </Card>
+  <Card title="Total gastado" icon="circle-dollar-sign">
+    The sum of all order totals in Peruvian soles (S/), including delivery costs.
+  </Card>
+  <Card title="Pedidos activos" icon="truck">
+    Orders that are not yet delivered, rejected, or cancelled. This count updates in real time as the admin changes order statuses.
+  </Card>
+</CardGroup>
+
+## Order tabs
+
+Below the stats, three tabs organize your orders by lifecycle stage.
+
+<Tabs>
+  <Tab title="Activos">
+    Orders that are in progress: `pendiente`, `confirmado`, `preparando`, or `en_camino`. These are orders the kitchen or delivery team is actively working on. A visual tracking bar shows the current step in the delivery pipeline.
+  </Tab>
+  <Tab title="Historial">
+    Completed orders with status `entregado` (delivered), `rechazado` (rejected), or `cancelado` (cancelled). From here you can repeat a past order or contact the admin via WhatsApp.
+  </Tab>
+  <Tab title="Programados">
+    Orders with status `programado` that are scheduled for a future delivery window. These move to Activos once the admin starts processing them.
+  </Tab>
+</Tabs>
+
+## Order cards
+
+Each order is displayed in a card with a left border tinted by the store's primary color. The card contains:
+
+- **Order number and date** — the sequential order number and the timestamp formatted for the Peru locale.
+- **Status badge** — a pill badge with a color that matches the current status (see table below).
+- **Item list** — each line shows the product name, quantity, and line total (e.g., "Coca Cola 500ml x2 — S/ 7.00").
+- **Order total** — the grand total including delivery cost.
+- **Delivery address** — shown when an address was captured at checkout, with a "Ver en mapa" button.
+
+### Status badge colors
+
+| Status | Color | Meaning |
+|---|---|---|
+| `pendiente` | Amber | Received, awaiting confirmation |
+| `confirmado` | Blue | Confirmed, being prepared |
+| `preparando` | Purple | In the kitchen |
+| `en_camino` | Cyan | Out for delivery |
+| `entregado` | Green | Delivered successfully |
+| `rechazado` | Red | Order was rejected |
+| `programado` | Amber | Scheduled for a future window |
+
+## Delivery tracking bar
+
+Active orders display a five-step visual progress bar below the item list. Each step has an icon, a label, and a color state.
+
+<CardGroup cols={2}>
+  <Card title="Completed steps" icon="check-circle">
+    Steps before the current status are shown in green, indicating they have been passed.
+  </Card>
+  <Card title="Active step" icon="loader">
+    The step matching the current status pulses with a scale animation to draw attention to where the order is right now.
+  </Card>
+</CardGroup>
+
+The five steps in order are:
+
+1. **Recibido** — order was placed (`pendiente`)
+2. **Confirmado** — admin confirmed the order (`confirmado`)
+3. **Preparando** — order is being prepared (`preparando`)
+4. **En camino** — order is out for delivery (`en_camino`)
+5. **Entregado** — order was delivered (`entregado`)
+
+## View delivery location on map
+
+Every order card that includes delivery coordinates shows a "Ver en mapa" button. Clicking it opens a fullscreen Leaflet map modal (`#mapModal`) with a pin at the saved coordinates and a popup showing the delivery address text.
+
+<Info>
+  Coordinates are captured when the shopper drops a pin on the map during checkout. If the shopper only typed an address without dropping a pin, the map defaults to Lima center coordinates.
+</Info>
+
+## Repeat an order
+
+On cards in the Historial tab with status `entregado`, a "Repetir este pedido" button is shown. Clicking it writes the previous order's items to `localStorage` under `kiosco_repeat_order`, then redirects to `index.html`. The storefront reads that key on load and re-adds the items to the cart automatically.
+
+## Contact the admin
+
+Every order card includes a "Consultar con el Administrador" button. Clicking it opens a pre-filled WhatsApp message to the admin's configured number with the order number included in the text, so the admin immediately knows which order the customer is asking about.
+
+## Push notifications
+
+Kiosco requests browser Notification API permission on page load. When the admin updates an order's status, `notifyCustomerStatusChange()` in `database.js` creates a browser push notification and adds an in-app notification entry.
+
+```javascript database.js
+if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    new Notification('🛒 Actualización de tu pedido', {
+        body: statusMessages[status],
+        icon: '/assets/icons/icon-192x192.png'
+    });
+}
+```
+
+<Warning>
+  Push notifications only fire if the customer's browser tab is open and permission has been granted. For guaranteed delivery, the admin should also communicate status updates via WhatsApp.
+</Warning>
+
+## In-app notification bell
+
+The header contains a notification bell icon with a red badge showing the count of unread notifications. Clicking the bell toggles a dropdown panel listing all status-change notifications for the logged-in phone number.
+
+Each notification shows:
+- The order number it relates to.
+- The timestamp of the status change.
+- The status message (e.g., "Tu pedido está en camino").
+
+Clicking a notification marks it as read and removes it from the unread count.
+
+## Real-time updates
+
+The portal listens for two events to stay current without requiring a manual refresh:
+
+<AccordionGroup>
+  <Accordion title="storage event">
+    Fires whenever another tab (such as the admin panel) writes to `localStorage`. When this happens, the portal re-reads `kiosco_orders`, updates the stats, and re-renders all order cards.
+  </Accordion>
+  <Accordion title="ordersUpdated event">
+    A custom `CustomEvent` dispatched by `saveOrders()` in `database.js` whenever an order is created or updated. This triggers the same refresh cycle as the `storage` event.
+  </Accordion>
+</AccordionGroup>
+
+```javascript database.js
+function saveOrders(orders) {
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+    window.dispatchEvent(new Event('ordersUpdated'));
+}
+```
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Shopping cart and checkout" icon="shopping-cart" href="/features/shopping-cart">
+    How orders are placed, including address capture and payment selection.
+  </Card>
+  <Card title="Kiosco storefront" icon="store" href="/features/storefront">
+    The customer-facing product catalog where shopping begins.
+  </Card>
+</CardGroup>
